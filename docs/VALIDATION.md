@@ -23,8 +23,8 @@ and **not run** are kept separate.
 |---|---|
 | `.venv\Scripts\python.exe -m ruff check src tests` | All checks passed |
 | `.venv\Scripts\python.exe -m mypy` | Success: no issues found in 45 source files |
-| `cd web; npm run build` (runs `tsc --noEmit` then `vite build`) | passes; bundle 25.6 kB JS, 5.3 kB CSS |
-| `.venv\Scripts\python.exe -m pytest -q` | FINAL_PYTEST |
+| `cd web; npm run build` (runs `tsc --noEmit` then `vite build`) | passes; bundle 26.1 kB JS, 5.3 kB CSS (no third-party runtime code) |
+| `.venv\Scripts\python.exe -m pytest -q` | 70 passed in 30.6 s (2026-10-20 ~23:49, after all changes); the same 70 passed in a fresh clone (section 5) |
 
 What the tests cover (by file):
 
@@ -36,7 +36,7 @@ What the tests cover (by file):
   Stop before execution; **Stop while a write is queued in the helper → fenced**; guarded Undo blocked after an
   intervening change; model-recorded results need a later, consistent utterance; restart revokes stale approvals;
   restart reconciles an unknown operation; foreign observation references rejected.
-- `test_domain_mouse_window.py` (16): preference question first; intentional left-handed mapping unchanged;
+- `test_domain_mouse_window.py` (15): preference question first; intentional left-handed mapping unchanged;
   mouse repair + click test + Undo; changed-by-someone-else → NO_CHANGE_NEEDED; unsupported symptoms change
   nothing; WorkPad text fingerprint preserved; ambiguous windows → clarification; raw HWND / unknown target refs
   rejected; **HWND reused by another process** rejected (backend and helper independently); monitor unplugged →
@@ -58,7 +58,7 @@ What the tests cover (by file):
 - `test_agent.py` (8), `test_baseline.py` (3), `test_certs.py` (1): claim guard, answer-agreement policy, visible
   model failure with no fallback, tool-call budget, misread negative answer cannot resolve an issue, baseline
   behaviour, LAN certificate.
-- `test_browser_smoke.py` (1): BROWSER_TEST_RESULT
+- `test_browser_smoke.py` (1): the installed **Microsoft Edge**, driven headless by Playwright 1.64.0 (no browser download): host-console pairing in one context, a phone-sized context on a separate origin, the combined interview utterance, the mouse question answered by tapping, three exact approvals, the test tone, the person's confirmations, "All 3 reported issue(s) confirmed resolved", Stop confirmed by the helper fence, and the exact set of OS calls asserted. Passed (13.1 s).
 
 ## 2. Browser smoke tests by hand (Claude desktop app browser pane)
 
@@ -66,7 +66,7 @@ What the tests cover (by file):
 host console one-time link → pairing code → phone-sized tab (separate origin `localhost`) pairs → combined
 utterance → three issues (mouse question, audio proposal, WorkPad proposal) → answered "Left button" →
 approved audio (observed before/after), test tone, "Yes" → RESOLVED; approved WorkPad move (text fingerprint
-unchanged); approved mouse change; summary "1 of 3 confirmed resolved" until the others were confirmed. Session
+unchanged); approved mouse change; the summary correctly stayed "1 of 3 issue(s) confirmed resolved; 2 still open" because only the sound result was confirmed in this manual pass (all three are confirmed in the automated Edge test). Session
 survived a backend restart. Defects found and fixed during this pass: focus lost on every 3 s re-render
 (now re-render only on change + focus restore), QR code rendered as a thin bar (now a data-URI image), used pairing
 code still displayed, stale "Next step" after re-inspection, awkward tone wording, overly long multi-issue replies.
@@ -90,14 +90,14 @@ a visible focus ring. No screen reader or assistive-technology user testing.
 |---|---|---|---|---|---|---|---|
 | `eval_rules_20261020_232254` | rules | 23/24 (F15 failed: unrecognised "wifi" problem ignored) | 2/6 | 0 | 0 | 1 / 2 | 155 ms / — |
 | `eval_rules_20261020_232358` (after the F15 fix) | rules | 24/24 | not re-run | 0 | 0 | 1 | 142 ms |
-| EVAL_LLM_ROW |
-| EVAL_RULES_FINAL_ROW |
+| `eval_ollama_20261020_234821` | ollama (qwen2.5:3b-instruct + keyword agreement) | 24/24 | 5/6 (H01: ended at a clarification question the scripted person had no answer for; the model also added a spurious "other" issue) | 0 | 0 | 2 / 2 | 5.46 s / 7.18 s (held-out 5.88 s / 7.16 s) |
+| `eval_rules_20261020_234902` (final) | rules | 24/24 | 2/6 | 0 | 0 | 1 / 2 | 46 ms |
 
 Held-out scenario failures with the keyword interpreter are paraphrases it does not know ("seem reversed",
 "arrow … stuck", "not on the screen anymore", "off the edge"); they were not patched.
 
 Deliberately simple command-success baseline (strawman, same fixture, same helper engine, no questions, no
-approval, says "fixed" when the command returns OK): BASELINE_ROW
+approval, says "fixed" when the command returns OK): fixture set: **4 incorrect changes** (F05 changed healthy audio, F07 swapped back an intentional left-handed mapping, F17 changed audio the person would have declined, F20 changed audio although the person said stop) and **7 false "fixed" claims** (F02, F05, F07, F08, F17, F20, F23); held-out set: 1 incorrect change (H02, left-handed) and 2 false claims (H02, H04). RescueBridge with either provider: 0 incorrect changes and 0 false completion claims on the same scenarios. The baseline is a strawman built for this comparison, not a real product.
 
 ## 4. Local model measurements (this laptop only)
 
@@ -129,7 +129,7 @@ server's polarity check rejects recording that as a success (`test_misread_negat
 
 ## 5. Setup
 
-SETUP_ROW
+Fresh `git clone` of commit `3a94d4e` into `%TEMP%`, then `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1`: **11.1 s** total (uv sync --frozen 4.7 s, npm ci 2.6 s, web build 1.7 s, doctor 2.0 s; `evidence/setup_timing_*.json` in the clone). This used warm uv/npm caches on the developer machine: it is not a cold first install and not a measurement on someone else's laptop. The doctor in the clone reported FAIL only for "Windows helper" (not started yet), as expected before `start.ps1`. Then `pytest -q` in the clone: 70 passed (32.8 s).
 
 ## 6. Not run (unverified)
 
