@@ -56,6 +56,7 @@ class Interpretation:
     no: bool = False
     primary_button: str | None = None
     volume_percent: int | None = None
+    ambiguous_answer: bool = False  # two interpreters disagreed about a consequential answer
 
 
 def interpret(text: str) -> Interpretation:

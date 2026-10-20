@@ -100,6 +100,14 @@ export function renderPairing(root: HTMLElement, session: Session): void {
     btn, msg);
   replace(root, header(session), h("main", { id: "main" }, form));
   code.focus();
+  // A QR scan or link may change only the fragment of an already-open page: pick the code up then too.
+  window.addEventListener("hashchange", () => {
+    const next = new URLSearchParams(location.hash.slice(1)).get("pair");
+    if (next) {
+      code.value = next;
+      history.replaceState(null, "", location.pathname);
+    }
+  });
 }
 
 function guessDeviceName(): string {

@@ -96,3 +96,43 @@ class OllamaInterpreter:
         if it.app_hint:
             it.app_hint = it.app_hint.strip()[:40] or None
         return it, ms
+
+
+def _combine(a: str | None, b: str | None) -> tuple[str | None, bool]:
+    """Agreement policy for a consequential answer: equal -> use; one missing -> use the other;
+    both present and different -> no answer (conflict), so the person is asked again."""
+    if a == b:
+        return a, False
+    if a is None:
+        return b, False
+    if b is None:
+        return a, False
+    return None, True
+
+
+class CombinedInterpreter:
+    """Local LLM for symptom understanding; LLM + keyword agreement for answers to a pending question.
+
+    The policy was chosen from measured failure modes (the 3B model misses negations, the keyword interpreter
+    misses paraphrases); it does not guess when the two disagree.
+    """
+
+    kind = "ollama"
+
+    def __init__(self, llm: OllamaInterpreter) -> None:
+        self.llm = llm
+        self.model = llm.model
+        self.data_destination = llm.data_destination
+
+    async def interpret(self, text: str, pending_question: str | None, timeout_s: float) -> tuple[Interpretation, int]:
+        from rescuebridge.agent.interpret import interpret as keyword
+
+        m, ms = await self.llm.interpret(text, pending_question, timeout_s)
+        k = keyword(text)
+        answer, conflict_a = _combine("yes" if m.yes else "no" if m.no else None, "yes" if k.yes else "no" if k.no else None)
+        button, conflict_b = _combine(m.primary_button, k.primary_button)
+        out = Interpretation(categories=m.categories, app_hint=m.app_hint or k.app_hint, stop=m.stop or k.stop,
+                             undo=m.undo or k.undo, yes=answer == "yes", no=answer == "no", primary_button=button,
+                             volume_percent=m.volume_percent if m.volume_percent is not None else k.volume_percent,
+                             ambiguous_answer=bool(pending_question) and (conflict_a or conflict_b))
+        return out, ms

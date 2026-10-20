@@ -73,7 +73,10 @@ async def run_doctor(settings: Settings) -> int:
     async with httpx2.AsyncClient(timeout=3.0) as c:
         try:
             r = await c.get(f"http://127.0.0.1:{settings.bff_port}/api/health")
-            add("OK" if r.status_code == 200 else "FAIL", "backend (browser app)", f"http://127.0.0.1:{settings.bff_port}/ -> {r.status_code}")
+            info = r.json() if r.status_code == 200 else {}
+            add("OK" if r.status_code == 200 else "FAIL", "backend (browser app)",
+                f"http://127.0.0.1:{settings.bff_port}/ -> {r.status_code}; adapter={info.get('host_adapter')}, "
+                f"language={info.get('model_provider')}")
         except httpx2.HTTPError as exc:
             add("WARN", "backend (browser app)", f"not running ({type(exc).__name__}); start with scripts\\start.ps1")
         try:

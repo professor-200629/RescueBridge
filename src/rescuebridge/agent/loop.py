@@ -331,6 +331,8 @@ class Agent:
             else:
                 said.append("There is no completed repair that can be undone.")
 
+        if it.ambiguous_answer and not results:
+            said.append("I wasn't sure what you meant, so I didn't record an answer. Please use the buttons on screen.")
         if len(results) == 1:
             said.append(describe_issue_result(results[0]))
         elif results:

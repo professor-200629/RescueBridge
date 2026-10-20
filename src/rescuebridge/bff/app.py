@@ -95,10 +95,11 @@ def _set_cookie(resp: Response, request: Request, name: str, value: str, *, max_
 
 def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = None) -> Starlette:
     s: Settings = ctx.settings
-    from rescuebridge.agent.llm_interpret import OllamaInterpreter
+    from rescuebridge.agent.llm_interpret import CombinedInterpreter, OllamaInterpreter
 
     ollama = OllamaProvider(s.ollama_url, s.ollama_model) if s.model_provider == "ollama-tools" else None
-    interpreter = OllamaInterpreter(s.ollama_url, s.ollama_model) if s.model_provider == "ollama" else None
+    interpreter = (CombinedInterpreter(OllamaInterpreter(s.ollama_url, s.ollama_model))
+                   if s.model_provider == "ollama" else None)
     llm = ollama or interpreter
     agent = Agent(provider_kind=s.model_provider, ollama=ollama, interpreter=interpreter,
                   max_turns=s.agent_max_model_turns, max_tool_calls=s.agent_max_tool_calls, timeout_s=s.agent_timeout_s)
@@ -186,7 +187,8 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
     async def health(request: Request) -> Response:
         if bad := check_host(request):
             return bad
-        return JSONResponse({"ok": True, "host_name": host_name(), "time": now_ms()})
+        return JSONResponse({"ok": True, "host_name": host_name(), "time": now_ms(), "host_adapter": s.host_adapter,
+                             "model_provider": s.model_provider})
 
     async def pair_request(request: Request) -> Response:
         if (bad := check_host(request)) or (bad := check_origin(request)):

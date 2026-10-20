@@ -17,7 +17,7 @@ from typing import Any
 import anyio
 
 from rescuebridge.agent.interpret import Interpretation, interpret
-from rescuebridge.agent.llm_interpret import OllamaInterpreter
+from rescuebridge.agent.llm_interpret import CombinedInterpreter, OllamaInterpreter
 from rescuebridge.agent.providers import ProviderError
 from rescuebridge.bench_model import CASES
 from rescuebridge.domain.recipes import analyze_mouse  # noqa: F401 - documents where the mouse question comes from
@@ -41,7 +41,7 @@ def _score_answer(it: Interpretation, expected: dict[str, Any]) -> bool:
 
 
 async def _evaluate(name: str, fn: Any, symptom_sets: dict[str, list[tuple[str, set[str]]]],
-                    answers: list[dict[str, Any]]) -> dict[str, Any]:
+                    answer_sets: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     out: dict[str, Any] = {"interpreter": name, "sets": {}}
     latencies: list[int] = []
     for set_name, cases in symptom_sets.items():
@@ -59,6 +59,16 @@ async def _evaluate(name: str, fn: Any, symptom_sets: dict[str, list[tuple[str, 
             rows.append({"text": text, "expected": sorted(expected), "got": sorted(got), "correct": got == expected,
                          "ms": ms, "error": err})
         out["sets"][set_name] = {"correct": sum(r["correct"] for r in rows), "total": len(rows), "rows": rows}
+    for set_name, answers in answer_sets.items():
+        out["sets"][set_name] = await _answers(fn, answers, latencies)
+    out["latency_ms"] = {"first": latencies[0] if latencies else None,
+                         "median_after_first": median(latencies[1:]) if len(latencies) > 1 else None,
+                         "max_after_first": max(latencies[1:]) if len(latencies) > 1 else None}
+    out["errors"] = sum(1 for s in out["sets"].values() for r in s["rows"] if r.get("error"))
+    return out
+
+
+async def _answers(fn: Any, answers: list[dict[str, Any]], latencies: list[int]) -> dict[str, Any]:
     arows: list[dict[str, Any]] = []
     for a in answers:
         q = MOUSE_Q if a["question"] == "mouse_preference" else CONFIRM_Q
@@ -67,38 +77,45 @@ async def _evaluate(name: str, fn: Any, symptom_sets: dict[str, list[tuple[str, 
             it, _ = await fn(a["text"], q)
             ok, err = _score_answer(it, a["expected"]), None
             got_a: dict[str, Any] = {"primary_button": it.primary_button,
-                                     "answer": "yes" if it.yes else "no" if it.no else "none"}
+                                     "answer": "yes" if it.yes else "no" if it.no else "none",
+                                     "ambiguous": it.ambiguous_answer}
         except ProviderError as exc:
             ok, err, got_a = False, str(exc), {}
         ms = round((time.perf_counter() - t0) * 1000)
         latencies.append(ms)
-        arows.append({"text": a["text"], "expected": a["expected"], "got": got_a, "correct": ok, "ms": ms, "error": err})
-    out["sets"]["heldout_answers"] = {"correct": sum(r["correct"] for r in arows), "total": len(arows), "rows": arows}
-    out["latency_ms"] = {"first": latencies[0] if latencies else None,
-                         "median_after_first": median(latencies[1:]) if len(latencies) > 1 else None,
-                         "max_after_first": max(latencies[1:]) if len(latencies) > 1 else None}
-    out["errors"] = sum(1 for s in out["sets"].values() for r in s["rows"] if r.get("error"))
-    return out
+        arows.append({"text": a["text"], "expected": a["expected"], "got": got_a, "correct": ok, "ms": ms, "error": err,
+                      "ambiguous": got_a.get("ambiguous", False)})
+    return {"correct": sum(r["correct"] for r in arows), "total": len(arows),
+            "asked_again_on_conflict": sum(1 for r in arows if r["ambiguous"]), "rows": arows}
 
 
 async def bench(models: list[str], url: str, timeout_s: float, root: Path) -> dict[str, Any]:
     held = _load_heldout(root)
+    held2 = json.loads((root / "scenarios" / "heldout_phrasings_v2.json").read_text(encoding="utf-8"))
     sets = {"dev": [(t, e) for t, e in CASES],
-            "heldout_symptoms": [(c["text"], set(c["expected"])) for c in held["symptoms"]]}
+            "heldout_v1_symptoms": [(c["text"], set(c["expected"])) for c in held["symptoms"]],
+            "heldout_v2_symptoms": [(c["text"], set(c["expected"])) for c in held2["symptoms"]]}
+    answer_sets = {"heldout_v1_answers": held["answers"], "heldout_v2_answers": held2["answers"]}
     res: dict[str, Any] = {"started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "host": platform.node(),
                            "interpreters": []}
 
     async def keyword(text: str, _q: str | None) -> tuple[Interpretation, int]:
         return interpret(text), 0
 
-    res["interpreters"].append(await _evaluate("keyword (no LLM)", keyword, sets, held["answers"]))
+    res["interpreters"].append(await _evaluate("keyword (no LLM)", keyword, sets, answer_sets))
     for model in models:
         llm = OllamaInterpreter(url, model)
+        combined = CombinedInterpreter(llm)
 
         async def via_llm(text: str, q: str | None, _llm: OllamaInterpreter = llm) -> tuple[Interpretation, int]:
             return await _llm.interpret(text, q, timeout_s=timeout_s)
 
-        res["interpreters"].append(await _evaluate(f"ollama {model} (structured JSON)", via_llm, sets, held["answers"]))
+        async def via_combined(text: str, q: str | None, _c: CombinedInterpreter = combined) -> tuple[Interpretation, int]:
+            return await _c.interpret(text, q, timeout_s=timeout_s)
+
+        res["interpreters"].append(await _evaluate(f"ollama {model} (structured JSON)", via_llm, sets, answer_sets))
+        res["interpreters"].append(await _evaluate(f"ollama {model} + keyword agreement (product mode)", via_combined,
+                                                   sets, answer_sets))
     return res
 
 
