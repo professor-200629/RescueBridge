@@ -37,6 +37,7 @@ log = logging.getLogger("rescuebridge.helper.pipe")
 
 MAX_MESSAGE = 1 << 20
 PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
+FILE_FLAG_FIRST_PIPE_INSTANCE = 0x00080000  # not exported by pywin32
 
 
 class HelperUnavailable(Exception):
@@ -116,7 +117,7 @@ class PipeServer:
     def _create_instance(self) -> Any:
         flags = win32pipe.PIPE_ACCESS_DUPLEX
         if self._first:
-            flags |= win32file.FILE_FLAG_FIRST_PIPE_INSTANCE
+            flags |= FILE_FLAG_FIRST_PIPE_INSTANCE
         mode = (win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT
                 | PIPE_REJECT_REMOTE_CLIENTS)
         h = win32pipe.CreateNamedPipe(self.pipe_name, flags, mode, win32pipe.PIPE_UNLIMITED_INSTANCES,
@@ -139,8 +140,9 @@ class PipeServer:
             if self._stop.is_set():
                 win32file.CloseHandle(h)
                 break
-            threading.Thread(target=self._serve_conn, args=(h,), daemon=True).start()
-            h = self._create_instance()
+            connected = h
+            h = self._create_instance()  # next listener exists BEFORE this connection can finish and close
+            threading.Thread(target=self._serve_conn, args=(connected,), daemon=True).start()
 
     def shutdown(self) -> None:
         self._stop.set()
@@ -181,6 +183,7 @@ class PipeServer:
 class _OverlappedPipe:
     def __init__(self, pipe_name: str, connect_timeout_s: float) -> None:
         deadline_ms = int(connect_timeout_s * 1000)
+        not_found_retries = 3  # tolerate the brief gap while the server re-creates a listening instance
         while True:
             try:
                 self.h = win32file.CreateFile(pipe_name, win32con.GENERIC_READ | win32con.GENERIC_WRITE, 0, None,
@@ -193,6 +196,10 @@ class _OverlappedPipe:
                     deadline_ms -= 1000
                     continue
                 if exc.winerror in (winerror.ERROR_FILE_NOT_FOUND, winerror.ERROR_PATH_NOT_FOUND):
+                    if not_found_retries > 0:
+                        not_found_retries -= 1
+                        win32api.Sleep(50)
+                        continue
                     raise HelperUnavailable("helper is not running (pipe not found)") from exc
                 if exc.winerror == winerror.ERROR_ACCESS_DENIED:
                     raise HelperUnavailable("access denied to helper pipe (different user?)") from exc

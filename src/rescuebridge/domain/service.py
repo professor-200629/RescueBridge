@@ -872,6 +872,21 @@ class RecoveryService:
                 "note": "Stop prevents further changes. It cannot reverse changes that already completed; those are "
                         "listed and can be undone with a separate, approved Undo where available."}
 
+    async def bump_revision(self, reason: str) -> dict[str, Any]:
+        """Invalidate all outstanding authority (e.g. a paired device was revoked) and fence the helper."""
+        with self.store.tx():
+            new_rev = self.revision() + 1
+            self.store.update("hosts", self.host_id, {"permission_revision": new_rev})
+            revoked = self.store.execute(
+                "UPDATE proposals SET status = 'REVOKED', status_reason = ? WHERE host_id = ? AND status IN ('PENDING','APPROVED')",
+                (reason[:100], self.host_id)).rowcount
+        try:
+            ack = await self.host.fence(new_rev)
+            fenced = bool(ack.get("ok"))
+        except HelperUnavailableError:
+            fenced = False
+        return {"permission_revision": new_rev, "revoked_proposals": revoked, "helper_fenced": fenced}
+
     def continue_mission(self, principal: Principal) -> dict[str, Any]:
         m = self._mission(principal, active_only=False)
         if not m or m["state"] != MissionState.STOPPED.value:

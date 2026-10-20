@@ -1,0 +1,276 @@
+"""Bounded agent loop. Every tool call goes through the real MCP client.
+
+Bounds (configurable): at most N model turns, M tool calls, and a wall-clock limit per user request.
+The final spoken text passes a deterministic claim guard: completion claims that the server status does
+not support, and any claim that something was approved, are removed and counted.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+from rescuebridge.agent.interpret import interpret
+from rescuebridge.agent.mcp_client import McpToolClient
+from rescuebridge.agent.providers import OllamaProvider, ProviderError
+
+SYSTEM_PROMPT = """You are RescueBridge, a calm recovery assistant reached from the person's phone while their \
+Windows laptop is hard to use. You can only act through the provided tools.
+Supported: wrong mouse button mapping, muted/silent default playback device, an app window that is off-screen.
+Anything else (including a mouse pointer that does not move) is unsupported: say so plainly.
+Process: start_recovery with one symptom per problem -> inspect_recovery for each new issue -> if the result has a \
+question, ask exactly that ONE question -> when the person answers, call propose_recovery with the answer.
+When a proposal exists, tell the person in one sentence what it will do and that they must tap Approve on their phone. \
+You can NEVER approve anything yourself and must never say a change was approved or made unless a tool result shows it.
+Never say something is fixed or resolved unless the issue state is RESOLVED.
+When the person answers a confirmation question (e.g. whether they heard the tone), call record_user_result with \
+their utterance_id. If they say stop, call stop_recovery.
+Reply in at most 3 short sentences, plain words, no IDs or technical terms."""
+
+CLAIM_RE = re.compile(r"\b(fixed|resolved|solved|repaired|working (again|now|fine)|all set|back to normal|"
+                      r"should (now )?work|problem is gone|good to go)\b", re.I)
+APPROVAL_RE = re.compile(r"\b(i('ve| have)? approved|approved (it|this|that|the change)|i('ll| will) approve|"
+                         r"you('ve| have) (already )?approved|approval (is )?(granted|given))\b", re.I)
+NEGATION_RE = re.compile(r"\b(not|n't|no longer|yet to|until|unless|once|after you|if)\b", re.I)
+
+
+@dataclass
+class AgentResult:
+    text: str
+    provider: str
+    model: str | None
+    model_turns: int = 0
+    tool_calls: int = 0
+    timed_out: bool = False
+    stop_reason: str = "completed"
+    blocked_claims: list[str] = field(default_factory=list)
+    trace: list[dict[str, Any]] = field(default_factory=list)
+    model_latency_ms: list[int] = field(default_factory=list)
+    protocol_version: str | None = None
+    error: str | None = None
+
+
+def guard_claims(text: str, status: dict[str, Any]) -> tuple[str, list[str]]:
+    resolved = any(i.get("state") == "RESOLVED" for i in status.get("issues", []))
+    kept, blocked = [], []
+    for sentence in re.split(r"(?<=[.!?])\s+", text.strip()):
+        if not sentence:
+            continue
+        if APPROVAL_RE.search(sentence) and not NEGATION_RE.search(sentence):
+            blocked.append(sentence)
+            continue
+        if CLAIM_RE.search(sentence) and not resolved and not NEGATION_RE.search(sentence):
+            blocked.append(sentence)
+            continue
+        kept.append(sentence)
+    out = " ".join(kept)
+    if blocked:
+        out = (out + " " if out else "") + "Nothing is confirmed fixed until you check it yourself."
+    return out, blocked
+
+
+def _compact(payload: Any, limit: int = 3500) -> str:
+    text = json.dumps(payload, ensure_ascii=False, default=str)
+    return text if len(text) <= limit else text[:limit] + "...(truncated)"
+
+
+def describe_issue_result(r: dict[str, Any]) -> str:
+    """Deterministic plain-language rendering of a server issue result (used by the rules strategy and as the
+    fallback when a model produces no usable text)."""
+    if "error" in r:
+        return f"I couldn't do that: {r['error'].get('message', 'request rejected')}."
+    state = r.get("state")
+    facts = r.get("observed_facts") or []
+    first = facts[0] if facts else ""
+    if state == "PROPOSED":
+        props = r.get("open_proposals") or ([r["new_proposal"]] if r.get("new_proposal") else [])
+        desc = props[-1]["description"] if props else "a change"
+        return f"{first} I've prepared this change: {desc} Check it and tap Approve on your phone if it's right."
+    if state == "NEEDS_CLARIFICATION":
+        return f"{first} {r.get('question') or ''}".strip()
+    if state == "UNRESOLVED":
+        return f"{first} {r.get('next_manual_step') or ''}".strip()
+    if state == "UNSUPPORTED":
+        return r.get("next_manual_step") or "That isn't something I can repair."
+    if state == "RESOLVED":
+        return "Thanks, I've marked that as resolved because you confirmed it."
+    if state == "AWAITING_USER_CONFIRMATION":
+        conf = r.get("confirmation") or {}
+        return conf.get("question") or "Please check it and tell me if it works."
+    if r.get("note"):
+        return r["note"]
+    return f"Status: {str(state).replace('_', ' ').lower()}."
+
+
+class Agent:
+    def __init__(self, *, provider_kind: str, ollama: OllamaProvider | None, max_turns: int, max_tool_calls: int,
+                 timeout_s: float) -> None:
+        self.provider_kind = provider_kind
+        self.ollama = ollama
+        self.max_turns = max_turns
+        self.max_tool_calls = max_tool_calls
+        self.timeout_s = timeout_s
+
+    async def run(self, mcp: McpToolClient, utterance_id: str, text: str,
+                  history: list[dict[str, str]]) -> AgentResult:
+        if self.provider_kind == "ollama" and self.ollama is not None:
+            res = await self._run_llm(mcp, utterance_id, text, history)
+        else:
+            res = await self._run_rules(mcp, utterance_id, text)
+        res.protocol_version = mcp.protocol_version
+        status, _ = await mcp.call("get_recovery_status", {})
+        res.text, res.blocked_claims = guard_claims(res.text, status)
+        res.trace = list(mcp.calls)
+        return res
+
+    # ------------------------------------------------------------------------------- LLM strategy
+    async def _run_llm(self, mcp: McpToolClient, utterance_id: str, text: str,
+                       history: list[dict[str, str]]) -> AgentResult:
+        assert self.ollama is not None
+        res = AgentResult(text="", provider="ollama", model=self.ollama.model)
+        deadline = time.monotonic() + self.timeout_s
+        tools = await mcp.list_tools()
+        status, _ = await mcp.call("get_recovery_status", {})
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": SYSTEM_PROMPT + "\n\nCurrent server status (authoritative):\n" + _compact(status, 2500)},
+            *history[-6:],
+            {"role": "user", "content": f"{text}\n\n[utterance_id: {utterance_id}]"},
+        ]
+        last_results: list[dict[str, Any]] = []
+        while res.model_turns < self.max_turns:
+            remaining = deadline - time.monotonic()
+            if remaining < 2:
+                res.timed_out, res.stop_reason = True, "wall_clock_limit"
+                break
+            try:
+                reply = await self.ollama.chat(messages, tools, timeout_s=remaining)
+            except ProviderError as exc:
+                res.error = str(exc)
+                res.timed_out = "timed out" in str(exc)
+                res.stop_reason = "model_timeout" if res.timed_out else "model_error"
+                break
+            res.model_turns += 1
+            res.model_latency_ms.append(reply.latency_ms)
+            messages.append({"role": "assistant", "content": reply.content,
+                             **({"tool_calls": [{"function": {"name": c.name, "arguments": c.arguments}}
+                                                for c in reply.tool_calls]} if reply.tool_calls else {})})
+            if not reply.tool_calls:
+                res.text = reply.content
+                break
+            for call in reply.tool_calls:
+                if res.tool_calls >= self.max_tool_calls:
+                    res.stop_reason = "tool_call_limit"
+                    break
+                payload, is_error = await mcp.call(call.name, call.arguments)
+                res.tool_calls += 1
+                last_results.append(payload)
+                messages.append({"role": "tool", "tool_name": call.name, "content": _compact(payload)})
+            if res.stop_reason == "tool_call_limit":
+                break
+        else:
+            res.stop_reason = "model_turn_limit"
+        if not res.text:
+            # deterministic fallback from server results: never invent progress
+            parts = [describe_issue_result(r) for r in last_results if isinstance(r, dict) and ("state" in r or "error" in r)]
+            note = {"wall_clock_limit": "I ran out of time for this request; progress so far is saved.",
+                    "model_timeout": "The local model took too long; progress so far is saved.",
+                    "model_error": f"The local model is unavailable ({res.error}).",
+                    "tool_call_limit": "I reached the step limit for one request; say 'continue' to go on.",
+                    "model_turn_limit": "I reached the step limit for one request; say 'continue' to go on."}.get(res.stop_reason, "")
+            res.text = " ".join(p for p in [*parts[-2:], note] if p)
+        return res
+
+    # ------------------------------------------------------------------------------- rules strategy
+    async def _run_rules(self, mcp: McpToolClient, utterance_id: str, text: str) -> AgentResult:
+        res = AgentResult(text="", provider="rules", model=None)
+        it = interpret(text)
+        said: list[str] = []
+        budget = self.max_tool_calls
+
+        async def call(name: str, args: dict[str, Any]) -> dict[str, Any]:
+            nonlocal budget
+            if budget <= 0:
+                res.stop_reason = "tool_call_limit"
+                return {"error": {"message": "step limit reached; say 'continue'"}}
+            budget -= 1
+            res.tool_calls += 1
+            payload, _ = await mcp.call(name, args)
+            return payload
+
+        if it.stop:
+            r = await call("stop_recovery", {"reason": "person said stop"})
+            res.text = ("Stopped. No further changes will be made." if r.get("stop_state") == "CONFIRMED" else
+                        "Stop recorded. I could not reach the laptop helper, so whether it has stopped is unknown.")
+            return res
+        status = await call("get_recovery_status", {})
+        issues = status.get("issues", [])
+        mission = status.get("mission")
+        active = mission is not None and mission.get("state") == "ACTIVE"
+        open_issues = [i for i in issues if i["state"] not in ("RESOLVED", "UNSUPPORTED")] if active else []
+
+        awaiting = [i for i in open_issues if i["state"] == "AWAITING_USER_CONFIRMATION"]
+        if awaiting and (it.yes or it.no) and not it.categories:
+            target = awaiting[-1]
+            r = await call("record_user_result", {"issue_id": target["issue_id"], "result": "works" if it.yes else "still_broken",
+                                                  "utterance_id": utterance_id})
+            said.append(describe_issue_result(r))
+
+        for issue in [i for i in open_issues if i["state"] == "NEEDS_CLARIFICATION"]:
+            args: dict[str, Any] = {"issue_id": issue["issue_id"]}
+            if issue["kind"] == "MOUSE_BUTTONS" and it.primary_button:
+                args["primary_button"] = it.primary_button
+            elif issue["kind"] == "OFFSCREEN_WINDOW":
+                low = text.lower()
+                match = [o for o in issue.get("options") or [] if any(
+                    w in low for w in re.findall(r"[a-z]{3,}", o["label"].lower()) if w not in {"rescuebridge", "demo"})]
+                if len(match) == 1:
+                    args["target_ref"] = match[0]["value"]
+            elif issue["kind"] == "AUDIO_OUTPUT" and it.volume_percent:
+                args["volume_percent"] = max(5, min(50, it.volume_percent))
+            if len(args) > 1:
+                r = await call("propose_recovery", args)
+                said.append(describe_issue_result(r))
+
+        existing = {i["category"] for i in open_issues}
+        new_cats = [c for c in it.categories if c not in existing]
+        if new_cats:
+            symptoms = [{"category": c, "user_words": text[:200], **({"app_hint": it.app_hint} if c == "window_missing"
+                                                                      and it.app_hint else {})} for c in new_cats]
+            started = await call("start_recovery", {"goal": text[:300], "symptoms": symptoms})
+            for iid in started.get("created_issue_ids", []):
+                issue = next((i for i in started.get("issues", []) if i["issue_id"] == iid), None)
+                if issue and issue["state"] == "UNSUPPORTED":
+                    said.append(describe_issue_result(issue))
+                    continue
+                r = await call("inspect_recovery", {"issue_id": iid})
+                said.append(describe_issue_result(r))
+
+        if it.undo:
+            ops = [o for i in issues for o in i.get("operations", []) if o.get("undo_available")]
+            if ops:
+                r = await call("undo_recovery", {"operation_id": ops[-1]["operation_id"]})
+                said.append(r["reason"] if r.get("blocked") else
+                            ("I've prepared an undo: " + r.get("proposal", {}).get("description", "") +
+                             " Tap Approve on your phone to run it.") if "proposal" in r else describe_issue_result(r))
+            else:
+                said.append("There is no completed repair that can be undone.")
+
+        if not said:
+            if not it.categories and not (it.yes or it.no):
+                said.append("I can help with three things: mouse buttons that click wrong, no sound from the default "
+                            "speaker, or an app window that went off-screen. Tell me what's happening.")
+            elif open_issues:
+                said.append(describe_issue_result(open_issues[0]))
+        # one focused question at a time: keep at most one question in the reply
+        out, asked = [], False
+        for s in said:
+            if "?" in s:
+                if asked:
+                    continue
+                asked = True
+            out.append(s)
+        res.text = " ".join(out)
+        return res

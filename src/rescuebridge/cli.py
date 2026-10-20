@@ -1,0 +1,101 @@
+"""`rescuebridge` command line."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
+import sys
+
+from rescuebridge.config import load_settings
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(prog="rescuebridge", description="RescueBridge second-channel recovery prototype")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp = sub.add_parser("serve", help="run the backend (browser app + MCP server)")
+    sp.add_argument("--lan", action="store_true", help="also serve HTTPS on this laptop's LAN address for the phone")
+    sp.add_argument("--fixture", action="store_true", help="use the in-process fixture adapter (no Windows changes)")
+    sp.add_argument("--provider", choices=["rules", "ollama"], help="language provider (default from RB_MODEL_PROVIDER)")
+    sp.add_argument("--model", help="Ollama model name")
+
+    hp = sub.add_parser("helper", help="run the Windows helper (current user, named pipe)")
+    hp.add_argument("--fixture", action="store_true", help="helper process backed by fixture state (no Windows changes)")
+
+    sub.add_parser("host-link", help="create a fresh one-time host-console link")
+    sub.add_parser("doctor", help="read-only setup checks")
+    tp = sub.add_parser("mcp-token", help="print a 1-hour MCP bearer token for a paired device (external MCP host)")
+    tp.add_argument("--device", required=True)
+    sub.add_parser("workpad", help="open the RescueBridge WorkPad demo app")
+
+    lp = sub.add_parser("lab", help="controlled live lab (opt-in, real Windows changes)")
+    lsub = lp.add_subparsers(dest="lab_cmd", required=True)
+    la = lsub.add_parser("arm", help="arm the live lab for a named session")
+    la.add_argument("--session", required=True)
+    la.add_argument("--minutes", type=int, default=10)
+    la.add_argument("--allow", required=True, help="comma list from: mouse,audio,workpad")
+    li = lsub.add_parser("inject", help="inject one allowed fault")
+    li.add_argument("fault", choices=["mouse-swap", "audio-mute", "audio-mute-silent", "workpad-offscreen"])
+    lsub.add_parser("restore", help="restore the recorded clean state now")
+    lsub.add_parser("status", help="show arming status")
+    lsub.add_parser("disarm", help="restore and disarm")
+    lw = lsub.add_parser("watchdog", help="restore automatically when the arming expires")
+    lw.add_argument("--poll", type=float, default=2.0)
+
+    args = p.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+    if args.cmd == "serve":
+        overrides: dict[str, object] = {}
+        if args.fixture:
+            overrides["host_adapter"] = "fixture"
+        if args.provider:
+            overrides["model_provider"] = args.provider
+        if args.model:
+            overrides["ollama_model"] = args.model
+        if args.lan:
+            overrides["lan_enabled"] = True
+        from rescuebridge.runtime import serve_backend
+
+        asyncio.run(serve_backend(load_settings(**overrides)))
+        return 0
+    if args.cmd == "helper":
+        from rescuebridge.runtime import run_helper
+
+        run_helper(load_settings(), fixture=args.fixture)
+        return 0
+    if args.cmd == "host-link":
+        from rescuebridge.auth import AuthService
+        from rescuebridge.domain.store import Store
+        from rescuebridge.runtime import write_host_link
+
+        s = load_settings()
+        path = write_host_link(s, AuthService(Store(s.db_path), s).create_host_bootstrap())
+        print(f"New one-time host-console link written to {path}")
+        return 0
+    if args.cmd == "doctor":
+        from rescuebridge.doctor import run_doctor
+
+        return asyncio.run(run_doctor(load_settings()))
+    if args.cmd == "mcp-token":
+        from rescuebridge.auth import AuthService
+        from rescuebridge.domain.store import Store
+
+        s = load_settings()
+        print(AuthService(Store(s.db_path), s).mint_mcp_token_for_device(args.device))
+        return 0
+    if args.cmd == "workpad":
+        from rescuebridge.workpad.app import run_workpad
+
+        run_workpad(load_settings())
+        return 0
+    if args.cmd == "lab":
+        from rescuebridge.lab import cli as lab_cli
+
+        return lab_cli.run(load_settings(), args)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
