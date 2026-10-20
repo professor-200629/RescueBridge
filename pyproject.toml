@@ -27,6 +27,7 @@ dev = [
     "pytest==9.1.1",
     "ruff==0.17.1",
     "mypy==2.4.0",
+    "playwright==1.64.0",
 ]
 
 [build-system]
@@ -42,6 +43,7 @@ addopts = "-ra"
 markers = [
     "windows_readonly: reads real Windows state without mutating it",
     "slow: slower end-to-end process tests",
+    "browser: drives Microsoft Edge through Playwright (skipped if unavailable)",
 ]
 
 [tool.ruff]

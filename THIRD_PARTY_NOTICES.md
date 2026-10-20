@@ -47,7 +47,8 @@ check the upstream projects for full license texts.
 Development only (not needed to run): mypy 2.4.0 (MIT), mypy_extensions 1.1.0 (MIT), pytest 9.1.1 (MIT),
 pluggy 1.7.0 (MIT), iniconfig 2.3.1 (MIT), Pygments 2.21.0 (BSD-2-Clause), ruff 0.17.1 (MIT),
 packaging 26.3 (Apache-2.0 OR BSD-2-Clause), pathspec 1.1.1 (MPL-2.0), librt 0.16.0 (MIT),
-ast_serialize 0.13.1 (MIT).
+ast_serialize 0.13.1 (MIT), playwright 1.64.0 (Apache-2.0; drives the already-installed Microsoft Edge in
+`tests/test_browser_smoke.py`, no browser download), greenlet 3.5.6 (MIT AND PSF-2.0), pyee 14.0.0 (MIT).
 
 ## Web build tooling (`web/`, development only)
 

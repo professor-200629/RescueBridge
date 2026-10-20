@@ -50,6 +50,20 @@ async def test_vertical_slice_audio_through_real_mcp(tmp_path):
         await phone.aclose()
 
 
+async def test_check_again_takes_a_fresh_observation(tmp_path):
+    async with running_backend(tmp_path) as be:
+        phone, _ = await pair_device(be)
+        out = (await phone.post("/api/utterance", json={"text": "I can't hear anything"})).json()
+        issue = out["status"]["issues"][0]
+        assert issue["state"] == "UNRESOLVED"
+        be.ops.state.endpoints[0].muted = True  # state changes later (e.g. a keyboard mute key)
+        r = await phone.post(f"/api/issues/{issue['issue_id']}/inspect", json={})
+        issue = r.json()["status"]["issues"][0]
+        assert issue["state"] == "PROPOSED" and issue["next_manual_step"] is None
+        assert be.ops.calls == []
+        await phone.aclose()
+
+
 async def test_stop_is_direct_and_revokes(tmp_path):
     async with running_backend(tmp_path) as be:
         be.ops.state.endpoints[0].muted = True

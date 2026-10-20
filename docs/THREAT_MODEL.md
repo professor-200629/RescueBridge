@@ -41,6 +41,14 @@ same Wi-Fi). Not a formal assessment; no external review or penetration test has
 | LAN eavesdropping | HTTPS with a locally generated certificate | Self-signed: the person must verify they are on their own laptop's address |
 | Denial of service from the LAN | Rate limits on pairing only | No general rate limiting; prototype |
 
+## Limits of device identity in this prototype
+
+A "paired device" is a browser session cookie issued after the person accepted the pairing request on the
+laptop. There is no hardware attestation, no passkey, and no binding to the phone's OS account: anyone who
+obtains that browser profile (or the cookie) is the device until it expires (12 h) or is revoked in the host
+console. Revocation takes effect on the next request and bumps the permission revision, which invalidates any
+outstanding proposal or approval.
+
 ## Not addressed
 
 Multi-user laptops with mutually hostile accounts, malware running as the same user, physical attackers

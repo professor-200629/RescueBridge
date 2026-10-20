@@ -100,7 +100,7 @@ always works.
 | `--provider` | What it is | Measured on this laptop (see VALIDATION) |
 |---|---|---|
 | `rules` (default) | deterministic keyword interpreter, **no language model** | instant; misses many paraphrases (held-out symptoms 11/20) |
-| `ollama` | local LLM fills a closed JSON schema; deterministic code calls the MCP tools; answers need LLM/keyword agreement | `qwen2.5:3b-instruct`: held-out symptoms 20/20; ~5.5 s per request warm, ~18–60 s cold |
+| `ollama` | local LLM fills a closed JSON schema; deterministic code calls the MCP tools; answers need LLM/keyword agreement | `qwen2.5:3b-instruct`: held-out symptoms 20/20 (v1) and 9/10 (v2); ~5.4 s median per request warm; first request 7–67 s depending on whether the model was already loaded and free RAM |
 | `ollama-tools` | experimental: the LLM picks MCP tools itself | 0/8 correct first tool calls for both installed 3B models — not recommended |
 
 If the configured provider is unavailable, the request fails visibly ("couldn't interpret … nothing was
@@ -148,6 +148,7 @@ mouse/audio/window state without changing it.
 [Validation](docs/VALIDATION.md) · [Privacy](docs/PRIVACY.md) · [Live lab](docs/LIVE_LAB.md) ·
 [Known limitations](docs/KNOWN_LIMITATIONS.md) · [Demo script](docs/DEMO_SCRIPT.md) ·
 [Submission](docs/SUBMISSION.md) · [Product feedback](docs/PRODUCT_FEEDBACK.md) ·
-[Friction log](docs/FRICTION_LOG.md) · [Checkpoint / next steps](NEXT.md)
+[Friction log](docs/FRICTION_LOG.md) · [Human trial protocol](docs/HUMAN_TRIAL_PROTOCOL.md) ·
+[Checkpoint / next steps](NEXT.md)
 
 License: Apache-2.0. Third-party notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

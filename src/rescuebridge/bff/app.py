@@ -390,6 +390,17 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         reply = store_message(sess.device_id, "assistant", describe_issue_result(r))
         return JSONResponse({"reply": reply, **state_payload(sess)})
 
+    async def inspect_again(request: Request) -> Response:
+        """'Check again' button: a fresh supported inspection through MCP inspect_recovery."""
+        sess, bad = require(request, "device")
+        if bad:
+            return bad
+        assert sess and sess.device_id
+        async with lock_for(sess.device_id), await with_mcp(sess) as mcp:
+            r, _ = await mcp.call("inspect_recovery", {"issue_id": request.path_params["issue_id"]})
+        reply = store_message(sess.device_id, "assistant", describe_issue_result(r))
+        return JSONResponse({"reply": reply, **state_payload(sess)})
+
     async def decline(request: Request) -> Response:
         sess, bad = require(request, "device")
         if bad:
@@ -583,6 +594,7 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         Route("/api/proposals/{proposal_id}/approve", approve, methods=["POST"]),
         Route("/api/proposals/{proposal_id}/decline", decline, methods=["POST"]),
         Route("/api/issues/{issue_id}/answer", answer, methods=["POST"]),
+        Route("/api/issues/{issue_id}/inspect", inspect_again, methods=["POST"]),
         Route("/api/issues/{issue_id}/result", user_result, methods=["POST"]),
         Route("/api/stop", stop, methods=["POST"]),
         Route("/api/continue", cont, methods=["POST"]),

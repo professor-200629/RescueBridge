@@ -335,7 +335,10 @@ export class RecoveryApp {
           (i.person_results ?? []).map((r: any) => h("li", null, h("span", { class: "label" }, "Your result: "),
             r.result === "works" ? "works" : r.result === "still_broken" ? "still broken" : "not sure",
             h("span", { class: "small" }, ` (${r.source === "ui_button" ? "tapped" : "said, interpreted"} at ${fmtTime(r.at)})`))))) : null,
-      i.next_manual_step ? h("p", { class: "next" }, h("span", { class: "label" }, "Next step: "), i.next_manual_step) : null);
+      i.next_manual_step ? h("p", { class: "next" }, h("span", { class: "label" }, "Next step: "), i.next_manual_step) : null,
+      ["UNRESOLVED", "FAILED", "REPORTED"].includes(i.state) && this.payload?.status?.mission?.state === "ACTIVE"
+        ? h("button", { id: `recheck-${i.issue_id}`, type: "button", class: "secondary",
+            onclick: () => void this.post(`/api/issues/${i.issue_id}/inspect`, {}) }, "Check again (fresh observation)") : null);
   }
 
   private proposalCard(pr: any): HTMLElement {
