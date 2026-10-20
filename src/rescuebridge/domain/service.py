@@ -952,10 +952,10 @@ class RecoveryService:
         for op in self.store.all("SELECT * FROM operations WHERE host_id = ? AND phase != 'FINISHED'", (self.host_id,)):
             p = self.store.get("proposals", op["proposal_id"])
             mission = self.store.get("missions", op["mission_id"])
-            issue = self.store.get("issues", op["issue_id"])
-            if not (p and mission and issue):
+            op_issue = self.store.get("issues", op["issue_id"])
+            if not (p and mission and op_issue):
                 continue
-            note = await self._reconcile_operation(op, p, mission, issue)
+            note = await self._reconcile_operation(op, p, mission, op_issue)
             notes.append(f"{op['id']}: {note}")
         return notes
 

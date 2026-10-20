@@ -21,6 +21,7 @@ import httpx2
 from rescuebridge.config import Settings
 
 Row = tuple[str, str, str]  # status, check, detail
+WEB_INDEX = Path(__file__).resolve().parents[2] / "web" / "dist" / "index.html"
 
 
 async def run_doctor(settings: Settings) -> int:
@@ -41,8 +42,8 @@ async def run_doctor(settings: Settings) -> int:
             add("OK", f"package {pkg}", md.version(pkg))
         except md.PackageNotFoundError:
             add("FAIL", f"package {pkg}", "missing: run scripts\\setup.ps1")
-    dist = Path(__file__).resolve().parents[2] / "web" / "dist" / "index.html"
-    add("OK" if dist.exists() else "FAIL", "web app build", str(dist.parent) if dist.exists() else "not built: run scripts\\setup.ps1")
+    built = WEB_INDEX.exists()  # noqa: ASYNC240 - one stat() in a CLI command
+    add("OK" if built else "FAIL", "web app build", str(WEB_INDEX.parent) if built else "not built: run scripts\\setup.ps1")
     node = shutil.which("node")
     add("OK" if node else "WARN", "Node.js (build only)", node or "not found (only needed to rebuild the web app)")
     add("OK" if settings.data_dir.exists() else "INFO", "data directory",

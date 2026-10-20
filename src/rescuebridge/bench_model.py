@@ -38,13 +38,13 @@ def _tools() -> list[dict[str, Any]]:
 
 async def bench(models: list[str], url: str, timeout_s: float) -> dict[str, Any]:
     tools = _tools()
-    status = {"adapter": "Fixture Simulation", "mission": None, "issues": []}
+    status: dict[str, Any] = {"adapter": "Fixture Simulation", "mission": None, "issues": []}
     out: dict[str, Any] = {"started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "host": platform.node(),
                            "cpu": platform.processor(), "ollama_url": url, "cases": len(CASES), "models": {}}
     for model in models:
         prov = OllamaProvider(url, model)
         out["ollama_version"] = await prov.version()
-        rows = []
+        rows: list[dict[str, Any]] = []
         for i, (text, expected) in enumerate(CASES):
             messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n\nCurrent server status (authoritative):\n"
                          + json.dumps(status)},
@@ -70,7 +70,7 @@ async def bench(models: list[str], url: str, timeout_s: float) -> dict[str, Any]
                          "categories": sorted(got), "schema_ok": schema_ok, "correct": schema_ok and got == expected,
                          "ms": reply.latency_ms, "cold": i == 0, "content_preview": reply.content[:120]})
         ok = [r for r in rows if r.get("correct")]
-        warm = [r["ms"] for r in rows if "ms" in r and not r.get("cold") and "error" not in r]
+        warm: list[int] = [int(r["ms"]) for r in rows if "ms" in r and not r.get("cold") and "error" not in r]
         out["models"][model] = {
             "correct": len(ok), "total": len(rows), "schema_ok": sum(1 for r in rows if r.get("schema_ok")),
             "errors": sum(1 for r in rows if "error" in r),

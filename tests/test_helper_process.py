@@ -9,6 +9,7 @@ import sys
 import time
 from pathlib import Path
 
+import anyio
 import pytest
 
 from rescuebridge.host.client import HelperUnavailableError, HostClient, PipeTransport
@@ -111,6 +112,6 @@ async def test_unreachable_helper_is_reported_as_unavailable(helper):
     tmp, pipe, proc = helper
     proc.kill()
     proc.wait(5)
-    time.sleep(0.2)
+    await anyio.sleep(0.2)
     with pytest.raises(HelperUnavailableError):
         await HostClient(PipeTransport(pipe, tmp / "helper.key")).observe("mouse")

@@ -1,0 +1,27 @@
+{
+  "_note": "Held-out v2, written 2026-10-20 BEFORE implementing the keyword+LLM agreement policy for answers (which was designed after inspecting held-out v1 failures). Evaluated once after implementation; not used for tuning. Authored by the same developer, so not independent user data.",
+  "symptoms": [
+    {"text": "every time I try to select something a menu pops up", "expected": ["mouse_buttons_wrong"]},
+    {"text": "laptop has gone completely quiet", "expected": ["no_sound"]},
+    {"text": "my spreadsheet window has vanished, the icon is still at the bottom", "expected": ["window_missing"]},
+    {"text": "the touchpad pointer will not move no matter what I do", "expected": ["mouse_not_moving"]},
+    {"text": "bluetooth keeps dropping", "expected": ["other"]},
+    {"text": "primary and secondary click are mixed up", "expected": ["mouse_buttons_wrong"]},
+    {"text": "I muted something by mistake and now there's no sound", "expected": ["no_sound"]},
+    {"text": "the chrome window slid off to the side of the screen", "expected": ["window_missing"]},
+    {"text": "my battery drains fast", "expected": ["other"]},
+    {"text": "no audio and the cursor is frozen", "expected": ["no_sound", "mouse_not_moving"]}
+  ],
+  "answers": [
+    {"question": "mouse_preference", "text": "left handed", "expected": {"primary_button": "right"}},
+    {"question": "mouse_preference", "text": "southpaw here", "expected": {"primary_button": "right"}},
+    {"question": "mouse_preference", "text": "I'd like it the standard way", "expected": {"primary_button": "left"}},
+    {"question": "mouse_preference", "text": "make it how a right-handed person uses it", "expected": {"primary_button": "left"}},
+    {"question": "mouse_preference", "text": "left click should be the main one", "expected": {"primary_button": "left"}},
+    {"question": "confirmation", "text": "yup", "expected": {"answer": "yes"}},
+    {"question": "confirmation", "text": "not at all", "expected": {"answer": "no"}},
+    {"question": "confirmation", "text": "I can hear the tone clearly", "expected": {"answer": "yes"}},
+    {"question": "confirmation", "text": "still nothing", "expected": {"answer": "no"}},
+    {"question": "confirmation", "text": "it's back on my screen", "expected": {"answer": "yes"}}
+  ]
+}

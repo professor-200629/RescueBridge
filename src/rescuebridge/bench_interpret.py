@@ -45,7 +45,7 @@ async def _evaluate(name: str, fn: Any, symptom_sets: dict[str, list[tuple[str, 
     out: dict[str, Any] = {"interpreter": name, "sets": {}}
     latencies: list[int] = []
     for set_name, cases in symptom_sets.items():
-        rows = []
+        rows: list[dict[str, Any]] = []
         for text, expected in cases:
             t0 = time.perf_counter()
             try:
@@ -59,19 +59,20 @@ async def _evaluate(name: str, fn: Any, symptom_sets: dict[str, list[tuple[str, 
             rows.append({"text": text, "expected": sorted(expected), "got": sorted(got), "correct": got == expected,
                          "ms": ms, "error": err})
         out["sets"][set_name] = {"correct": sum(r["correct"] for r in rows), "total": len(rows), "rows": rows}
-    arows = []
+    arows: list[dict[str, Any]] = []
     for a in answers:
         q = MOUSE_Q if a["question"] == "mouse_preference" else CONFIRM_Q
         t0 = time.perf_counter()
         try:
             it, _ = await fn(a["text"], q)
             ok, err = _score_answer(it, a["expected"]), None
-            got = {"primary_button": it.primary_button, "answer": "yes" if it.yes else "no" if it.no else "none"}
+            got_a: dict[str, Any] = {"primary_button": it.primary_button,
+                                     "answer": "yes" if it.yes else "no" if it.no else "none"}
         except ProviderError as exc:
-            ok, err, got = False, str(exc), {}
+            ok, err, got_a = False, str(exc), {}
         ms = round((time.perf_counter() - t0) * 1000)
         latencies.append(ms)
-        arows.append({"text": a["text"], "expected": a["expected"], "got": got, "correct": ok, "ms": ms, "error": err})
+        arows.append({"text": a["text"], "expected": a["expected"], "got": got_a, "correct": ok, "ms": ms, "error": err})
     out["sets"]["heldout_answers"] = {"correct": sum(r["correct"] for r in arows), "total": len(arows), "rows": arows}
     out["latency_ms"] = {"first": latencies[0] if latencies else None,
                          "median_after_first": median(latencies[1:]) if len(latencies) > 1 else None,

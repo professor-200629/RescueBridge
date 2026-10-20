@@ -14,3 +14,4 @@ web/dist/
 evidence/raw/
 .smoke-data/
 evidence/tmp/
+.smoke-real/

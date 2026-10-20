@@ -19,9 +19,9 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response
-from starlette.routing import Mount, Route
+from starlette.routing import BaseRoute, Mount, Route
 from starlette.staticfiles import StaticFiles
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from rescuebridge.agent.loop import Agent, AgentResult, describe_issue_result
 from rescuebridge.agent.mcp_client import McpToolClient
@@ -61,7 +61,7 @@ class SecurityHeaders:
             await self.app(scope, receive, send)
             return
 
-        async def send_wrapper(message: dict[str, Any]) -> None:
+        async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
                 message.setdefault("headers", [])
                 message["headers"] = list(message["headers"]) + SECURITY_HEADERS
@@ -569,7 +569,7 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
                                      "Stop pressed on the laptop host console")
         return JSONResponse({"stop": res})
 
-    routes = [
+    routes: list[BaseRoute] = [
         Route("/", index), Route("/host", index),
         Route("/api/health", health),
         Route("/api/session", session_info),

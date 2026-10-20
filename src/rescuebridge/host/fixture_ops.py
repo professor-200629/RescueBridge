@@ -95,18 +95,49 @@ def _elevated_notepad(st: FixtureState) -> None:
     _offscreen(st, 0x2C3D, (-1400, 200, -500, 800))
 
 
+def _healthy(st: FixtureState) -> None:
+    return None
+
+
+def _silent(st: FixtureState) -> None:
+    _mute(st, 0.0)
+
+
+def _volume_zero(st: FixtureState) -> None:
+    st.endpoints[0].volume_scalar = 0.0
+
+
+def _left_handed(st: FixtureState) -> None:
+    st.swap_effective = True  # intentional, saved left-handed configuration
+    st.swap_saved = True
+
+
+def _workpad_offscreen(st: FixtureState) -> None:
+    _offscreen(st, 0x1A2B, (2500, 300, 3300, 900))
+
+
+def _two_offscreen(st: FixtureState) -> None:
+    _workpad_offscreen(st)
+    _offscreen(st, 0x2C3D, (-1400, 200, -500, 800))
+
+
+def _interview(st: FixtureState) -> None:
+    _swap(st)
+    _mute(st)
+    _workpad_offscreen(st)
+
+
 SCENARIOS: dict[str, Callable[[FixtureState], None]] = {
-    "healthy": lambda st: None,
+    "healthy": _healthy,
     "muted": _mute,
-    "silent": lambda st: _mute(st, 0.0),
-    "volume-zero": lambda st: setattr(st.endpoints[0], "volume_scalar", 0.0),
+    "silent": _silent,
+    "volume-zero": _volume_zero,
     "swapped": _swap,
-    "left-handed": lambda st: (setattr(st, "swap_effective", True), setattr(st, "swap_saved", True)) and None,
-    "offscreen": lambda st: _offscreen(st, 0x1A2B, (2500, 300, 3300, 900)),
-    "two-offscreen": lambda st: (_offscreen(st, 0x1A2B, (2500, 300, 3300, 900)),
-                                 _offscreen(st, 0x2C3D, (-1400, 200, -500, 800))) and None,
+    "left-handed": _left_handed,
+    "offscreen": _workpad_offscreen,
+    "two-offscreen": _two_offscreen,
     "elevated-offscreen": _elevated_notepad,
-    "interview": lambda st: (_swap(st), _mute(st), _offscreen(st, 0x1A2B, (2500, 300, 3300, 900))) and None,
+    "interview": _interview,
 }
 
 

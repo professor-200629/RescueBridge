@@ -15,6 +15,7 @@ import re
 import time
 import tkinter as tk
 from pathlib import Path
+from typing import Any
 
 TIMEOUT_MS = 120_000
 
@@ -27,7 +28,8 @@ def main() -> None:
     if not re.fullmatch(r"[A-Za-z0-9_.\-]{1,80}", a.test_id):
         raise SystemExit("bad test id")
     out = Path(a.out) / f"{a.test_id}.json"
-    state = {"status": "waiting", "primary_clicks": 0, "secondary_clicks": 0, "started_at": int(time.time() * 1000)}
+    state: dict[str, Any] = {"status": "waiting", "primary_clicks": 0, "secondary_clicks": 0,
+                             "started_at": int(time.time() * 1000)}
 
     def write() -> None:
         state["updated_at"] = int(time.time() * 1000)
