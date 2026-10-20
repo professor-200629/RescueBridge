@@ -39,7 +39,7 @@ def _tools() -> list[dict[str, Any]]:
 async def bench(models: list[str], url: str, timeout_s: float) -> dict[str, Any]:
     tools = _tools()
     status: dict[str, Any] = {"adapter": "Fixture Simulation", "mission": None, "issues": []}
-    out: dict[str, Any] = {"started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "host": platform.node(),
+    out: dict[str, Any] = {"started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "host": "test laptop (name redacted)",
                            "cpu": platform.processor(), "ollama_url": url, "cases": len(CASES), "models": {}}
     for model in models:
         prov = OllamaProvider(url, model)

@@ -1,0 +1,2439 @@
+{
+  "started_at": "2026-10-20T23:31:00+0530",
+  "host": "test laptop (name redacted)",
+  "interpreters": [
+    {
+      "interpreter": "keyword (no LLM)",
+      "sets": {
+        "dev": {
+          "correct": 7,
+          "total": 8,
+          "rows": [
+            {
+              "text": "My clicks are wrong and I can't hear anything",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 3,
+              "error": null
+            },
+            {
+              "text": "The sound is gone completely",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "My notes window disappeared",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "Left click opens the right-click menu",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "The mouse pointer is frozen and won't move",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "My wifi keeps disconnecting",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "I can't hear the interviewer and WorkPad vanished off the screen",
+              "expected": [
+                "no_sound",
+                "window_missing"
+              ],
+              "got": [
+                "no_sound",
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "Nothing plays through the speakers",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v1_symptoms": {
+          "correct": 11,
+          "total": 20,
+          "rows": [
+            {
+              "text": "Whenever I press the mouse it shows that small menu instead of selecting",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "audio is dead, nothing coming out",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "my document editor is not on the screen anymore but it's still in the taskbar",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "the arrow on screen is stuck, it doesn't budge",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "zoom call starting, speakers silent and the main click acts like a right click",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "printer is not printing",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "I lost the WorkPad, where did it go",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "can't hear a thing from the laptop",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "buttons on my mouse seem reversed",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "Excel keeps crashing",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "the notes app went somewhere off the edge of the monitor",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "volume is all the way down and muted I think",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "everything I click opens a context menu, also I cannot hear my teacher",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "screen is black",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "my cursor won't move at all",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "help, my notes vanished and there's no audio",
+              "expected": [
+                "no_sound",
+                "window_missing"
+              ],
+              "got": [
+                "no_sound",
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "the left button behaves like the right one",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "I need to fix my keyboard, some keys don't type",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "speaker shows a red cross and nothing plays",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "where is my notepad window, it was here a second ago",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v2_symptoms": {
+          "correct": 8,
+          "total": 10,
+          "rows": [
+            {
+              "text": "every time I try to select something a menu pops up",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "laptop has gone completely quiet",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "my spreadsheet window has vanished, the icon is still at the bottom",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "the touchpad pointer will not move no matter what I do",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "bluetooth keeps dropping",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "primary and secondary click are mixed up",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "I muted something by mistake and now there's no sound",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "the chrome window slid off to the side of the screen",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "my battery drains fast",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 0,
+              "error": null
+            },
+            {
+              "text": "no audio and the cursor is frozen",
+              "expected": [
+                "mouse_not_moving",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_not_moving",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 0,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v1_answers": {
+          "correct": 8,
+          "total": 10,
+          "asked_again_on_conflict": 0,
+          "rows": [
+            {
+              "text": "I'm a lefty",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "normal way please",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "the usual one, left",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I use my left hand for the mouse",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "right",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I'm right-handed",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yeah that worked",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "nope still silent",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "no",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I heard a beep",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "didn't hear anything",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "no",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yes I can see it now",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            }
+          ]
+        },
+        "heldout_v2_answers": {
+          "correct": 7,
+          "total": 10,
+          "asked_again_on_conflict": 0,
+          "rows": [
+            {
+              "text": "left handed",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "right",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "southpaw here",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I'd like it the standard way",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "make it how a right-handed person uses it",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "left click should be the main one",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yup",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "not at all",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I can hear the tone clearly",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "still nothing",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "no",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "it's back on my screen",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 0,
+              "error": null,
+              "ambiguous": false
+            }
+          ]
+        }
+      },
+      "latency_ms": {
+        "first": 3,
+        "median_after_first": 0,
+        "max_after_first": 0
+      },
+      "errors": 0
+    },
+    {
+      "interpreter": "ollama qwen2.5:3b-instruct (structured JSON)",
+      "sets": {
+        "dev": {
+          "correct": 8,
+          "total": 8,
+          "rows": [
+            {
+              "text": "My clicks are wrong and I can't hear anything",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 9119,
+              "error": null
+            },
+            {
+              "text": "The sound is gone completely",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 4649,
+              "error": null
+            },
+            {
+              "text": "My notes window disappeared",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5004,
+              "error": null
+            },
+            {
+              "text": "Left click opens the right-click menu",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 4773,
+              "error": null
+            },
+            {
+              "text": "The mouse pointer is frozen and won't move",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 4936,
+              "error": null
+            },
+            {
+              "text": "My wifi keeps disconnecting",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 4519,
+              "error": null
+            },
+            {
+              "text": "I can't hear the interviewer and WorkPad vanished off the screen",
+              "expected": [
+                "no_sound",
+                "window_missing"
+              ],
+              "got": [
+                "no_sound",
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5956,
+              "error": null
+            },
+            {
+              "text": "Nothing plays through the speakers",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 4650,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v1_symptoms": {
+          "correct": 20,
+          "total": 20,
+          "rows": [
+            {
+              "text": "Whenever I press the mouse it shows that small menu instead of selecting",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 4976,
+              "error": null
+            },
+            {
+              "text": "audio is dead, nothing coming out",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 4740,
+              "error": null
+            },
+            {
+              "text": "my document editor is not on the screen anymore but it's still in the taskbar",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5478,
+              "error": null
+            },
+            {
+              "text": "the arrow on screen is stuck, it doesn't budge",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 5002,
+              "error": null
+            },
+            {
+              "text": "zoom call starting, speakers silent and the main click acts like a right click",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5598,
+              "error": null
+            },
+            {
+              "text": "printer is not printing",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5002,
+              "error": null
+            },
+            {
+              "text": "I lost the WorkPad, where did it go",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5410,
+              "error": null
+            },
+            {
+              "text": "can't hear a thing from the laptop",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5470,
+              "error": null
+            },
+            {
+              "text": "buttons on my mouse seem reversed",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5334,
+              "error": null
+            },
+            {
+              "text": "Excel keeps crashing",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5464,
+              "error": null
+            },
+            {
+              "text": "the notes app went somewhere off the edge of the monitor",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5656,
+              "error": null
+            },
+            {
+              "text": "volume is all the way down and muted I think",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5421,
+              "error": null
+            },
+            {
+              "text": "everything I click opens a context menu, also I cannot hear my teacher",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 6244,
+              "error": null
+            },
+            {
+              "text": "screen is black",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 4927,
+              "error": null
+            },
+            {
+              "text": "my cursor won't move at all",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 5567,
+              "error": null
+            },
+            {
+              "text": "help, my notes vanished and there's no audio",
+              "expected": [
+                "no_sound",
+                "window_missing"
+              ],
+              "got": [
+                "no_sound",
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 6246,
+              "error": null
+            },
+            {
+              "text": "the left button behaves like the right one",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5700,
+              "error": null
+            },
+            {
+              "text": "I need to fix my keyboard, some keys don't type",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5218,
+              "error": null
+            },
+            {
+              "text": "speaker shows a red cross and nothing plays",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5319,
+              "error": null
+            },
+            {
+              "text": "where is my notepad window, it was here a second ago",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5528,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v2_symptoms": {
+          "correct": 9,
+          "total": 10,
+          "rows": [
+            {
+              "text": "every time I try to select something a menu pops up",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5478,
+              "error": null
+            },
+            {
+              "text": "laptop has gone completely quiet",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5121,
+              "error": null
+            },
+            {
+              "text": "my spreadsheet window has vanished, the icon is still at the bottom",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5770,
+              "error": null
+            },
+            {
+              "text": "the touchpad pointer will not move no matter what I do",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 5545,
+              "error": null
+            },
+            {
+              "text": "bluetooth keeps dropping",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5166,
+              "error": null
+            },
+            {
+              "text": "primary and secondary click are mixed up",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5391,
+              "error": null
+            },
+            {
+              "text": "I muted something by mistake and now there's no sound",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5400,
+              "error": null
+            },
+            {
+              "text": "the chrome window slid off to the side of the screen",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5415,
+              "error": null
+            },
+            {
+              "text": "my battery drains fast",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 4816,
+              "error": null
+            },
+            {
+              "text": "no audio and the cursor is frozen",
+              "expected": [
+                "mouse_not_moving",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_not_moving",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 6243,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v1_answers": {
+          "correct": 6,
+          "total": 10,
+          "asked_again_on_conflict": 0,
+          "rows": [
+            {
+              "text": "I'm a lefty",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "right",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 7350,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "normal way please",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 4812,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "the usual one, left",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5024,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I use my left hand for the mouse",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 5225,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I'm right-handed",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5029,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yeah that worked",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 6121,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "nope still silent",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 5213,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I heard a beep",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5155,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "didn't hear anything",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 5253,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yes I can see it now",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5433,
+              "error": null,
+              "ambiguous": false
+            }
+          ]
+        },
+        "heldout_v2_answers": {
+          "correct": 7,
+          "total": 10,
+          "asked_again_on_conflict": 0,
+          "rows": [
+            {
+              "text": "left handed",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "right",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 6140,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "southpaw here",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "right",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5741,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I'd like it the standard way",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5204,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "make it how a right-handed person uses it",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5241,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "left click should be the main one",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 4994,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yup",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5639,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "not at all",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 5028,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I can hear the tone clearly",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5529,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "still nothing",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 5397,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "it's back on my screen",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 5310,
+              "error": null,
+              "ambiguous": false
+            }
+          ]
+        }
+      },
+      "latency_ms": {
+        "first": 9119,
+        "median_after_first": 5334,
+        "max_after_first": 7350
+      },
+      "errors": 0
+    },
+    {
+      "interpreter": "ollama qwen2.5:3b-instruct + keyword agreement (product mode)",
+      "sets": {
+        "dev": {
+          "correct": 8,
+          "total": 8,
+          "rows": [
+            {
+              "text": "My clicks are wrong and I can't hear anything",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 6695,
+              "error": null
+            },
+            {
+              "text": "The sound is gone completely",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5772,
+              "error": null
+            },
+            {
+              "text": "My notes window disappeared",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5470,
+              "error": null
+            },
+            {
+              "text": "Left click opens the right-click menu",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5610,
+              "error": null
+            },
+            {
+              "text": "The mouse pointer is frozen and won't move",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 5731,
+              "error": null
+            },
+            {
+              "text": "My wifi keeps disconnecting",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5285,
+              "error": null
+            },
+            {
+              "text": "I can't hear the interviewer and WorkPad vanished off the screen",
+              "expected": [
+                "no_sound",
+                "window_missing"
+              ],
+              "got": [
+                "no_sound",
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 6749,
+              "error": null
+            },
+            {
+              "text": "Nothing plays through the speakers",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5350,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v1_symptoms": {
+          "correct": 20,
+          "total": 20,
+          "rows": [
+            {
+              "text": "Whenever I press the mouse it shows that small menu instead of selecting",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5727,
+              "error": null
+            },
+            {
+              "text": "audio is dead, nothing coming out",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5589,
+              "error": null
+            },
+            {
+              "text": "my document editor is not on the screen anymore but it's still in the taskbar",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 6052,
+              "error": null
+            },
+            {
+              "text": "the arrow on screen is stuck, it doesn't budge",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 5418,
+              "error": null
+            },
+            {
+              "text": "zoom call starting, speakers silent and the main click acts like a right click",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5780,
+              "error": null
+            },
+            {
+              "text": "printer is not printing",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5019,
+              "error": null
+            },
+            {
+              "text": "I lost the WorkPad, where did it go",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5459,
+              "error": null
+            },
+            {
+              "text": "can't hear a thing from the laptop",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5154,
+              "error": null
+            },
+            {
+              "text": "buttons on my mouse seem reversed",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5476,
+              "error": null
+            },
+            {
+              "text": "Excel keeps crashing",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5031,
+              "error": null
+            },
+            {
+              "text": "the notes app went somewhere off the edge of the monitor",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5487,
+              "error": null
+            },
+            {
+              "text": "volume is all the way down and muted I think",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5631,
+              "error": null
+            },
+            {
+              "text": "everything I click opens a context menu, also I cannot hear my teacher",
+              "expected": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_buttons_wrong",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 6222,
+              "error": null
+            },
+            {
+              "text": "screen is black",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5184,
+              "error": null
+            },
+            {
+              "text": "my cursor won't move at all",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 5509,
+              "error": null
+            },
+            {
+              "text": "help, my notes vanished and there's no audio",
+              "expected": [
+                "no_sound",
+                "window_missing"
+              ],
+              "got": [
+                "no_sound",
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 6012,
+              "error": null
+            },
+            {
+              "text": "the left button behaves like the right one",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5875,
+              "error": null
+            },
+            {
+              "text": "I need to fix my keyboard, some keys don't type",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5103,
+              "error": null
+            },
+            {
+              "text": "speaker shows a red cross and nothing plays",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5125,
+              "error": null
+            },
+            {
+              "text": "where is my notepad window, it was here a second ago",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5575,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v2_symptoms": {
+          "correct": 9,
+          "total": 10,
+          "rows": [
+            {
+              "text": "every time I try to select something a menu pops up",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5288,
+              "error": null
+            },
+            {
+              "text": "laptop has gone completely quiet",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5226,
+              "error": null
+            },
+            {
+              "text": "my spreadsheet window has vanished, the icon is still at the bottom",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5427,
+              "error": null
+            },
+            {
+              "text": "the touchpad pointer will not move no matter what I do",
+              "expected": [
+                "mouse_not_moving"
+              ],
+              "got": [
+                "mouse_not_moving"
+              ],
+              "correct": true,
+              "ms": 5547,
+              "error": null
+            },
+            {
+              "text": "bluetooth keeps dropping",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "other"
+              ],
+              "correct": true,
+              "ms": 5407,
+              "error": null
+            },
+            {
+              "text": "primary and secondary click are mixed up",
+              "expected": [
+                "mouse_buttons_wrong"
+              ],
+              "got": [
+                "mouse_buttons_wrong"
+              ],
+              "correct": true,
+              "ms": 5518,
+              "error": null
+            },
+            {
+              "text": "I muted something by mistake and now there's no sound",
+              "expected": [
+                "no_sound"
+              ],
+              "got": [
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 5277,
+              "error": null
+            },
+            {
+              "text": "the chrome window slid off to the side of the screen",
+              "expected": [
+                "window_missing"
+              ],
+              "got": [
+                "window_missing"
+              ],
+              "correct": true,
+              "ms": 5348,
+              "error": null
+            },
+            {
+              "text": "my battery drains fast",
+              "expected": [
+                "other"
+              ],
+              "got": [
+                "(none)"
+              ],
+              "correct": false,
+              "ms": 4859,
+              "error": null
+            },
+            {
+              "text": "no audio and the cursor is frozen",
+              "expected": [
+                "mouse_not_moving",
+                "no_sound"
+              ],
+              "got": [
+                "mouse_not_moving",
+                "no_sound"
+              ],
+              "correct": true,
+              "ms": 6239,
+              "error": null
+            }
+          ]
+        },
+        "heldout_v1_answers": {
+          "correct": 9,
+          "total": 10,
+          "asked_again_on_conflict": 1,
+          "rows": [
+            {
+              "text": "I'm a lefty",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "right",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 6588,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "normal way please",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 4710,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "the usual one, left",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 4950,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I use my left hand for the mouse",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": true
+              },
+              "correct": false,
+              "ms": 5032,
+              "error": null,
+              "ambiguous": true
+            },
+            {
+              "text": "I'm right-handed",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5335,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yeah that worked",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 6063,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "nope still silent",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "no",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5507,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I heard a beep",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5387,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "didn't hear anything",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "no",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 4990,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yes I can see it now",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5247,
+              "error": null,
+              "ambiguous": false
+            }
+          ]
+        },
+        "heldout_v2_answers": {
+          "correct": 8,
+          "total": 10,
+          "asked_again_on_conflict": 1,
+          "rows": [
+            {
+              "text": "left handed",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "right",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 6011,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "southpaw here",
+              "expected": {
+                "primary_button": "right"
+              },
+              "got": {
+                "primary_button": "right",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5828,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I'd like it the standard way",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 4914,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "make it how a right-handed person uses it",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5080,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "left click should be the main one",
+              "expected": {
+                "primary_button": "left"
+              },
+              "got": {
+                "primary_button": "left",
+                "answer": "none",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5211,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "yup",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5667,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "not at all",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": false,
+              "ms": 5343,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "I can hear the tone clearly",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 5852,
+              "error": null,
+              "ambiguous": false
+            },
+            {
+              "text": "still nothing",
+              "expected": {
+                "answer": "no"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "none",
+                "ambiguous": true
+              },
+              "correct": false,
+              "ms": 4991,
+              "error": null,
+              "ambiguous": true
+            },
+            {
+              "text": "it's back on my screen",
+              "expected": {
+                "answer": "yes"
+              },
+              "got": {
+                "primary_button": null,
+                "answer": "yes",
+                "ambiguous": false
+              },
+              "correct": true,
+              "ms": 4868,
+              "error": null,
+              "ambiguous": false
+            }
+          ]
+        }
+      },
+      "latency_ms": {
+        "first": 6695,
+        "median_after_first": 5427,
+        "max_after_first": 6749
+      },
+      "errors": 0
+    }
+  ]
+}

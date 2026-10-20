@@ -160,6 +160,8 @@ export class RecoveryApp {
       },
       onSpeaking: (speaking) => {
         this.els.stopSpeak.hidden = !speaking;
+        if (speaking) this.els.micState.textContent = "Speaking the reply… (Stop speaking only silences this device)";
+        else if (this.els.micState.textContent?.startsWith("Speaking")) this.els.micState.textContent = "";
       },
     });
     this.build();

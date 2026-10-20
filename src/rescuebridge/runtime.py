@@ -31,6 +31,15 @@ class _QuietSignalServer(uvicorn.Server):
         yield
 
 
+def is_elevated() -> bool:
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError):
+        return False
+
+
 def lan_ip() -> str | None:
     """Best-effort primary IPv4 of this laptop (UDP connect sends no packets)."""
     try:
@@ -110,6 +119,11 @@ def run_helper(settings: Settings, *, fixture: bool = False) -> None:
     from rescuebridge.host.pipe import PipeServer, write_private_file
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
+    if not fixture and is_elevated():
+        # Running elevated would make administrator windows look "same integrity" and therefore movable,
+        # silently crossing the integrity boundary this prototype promises not to cross.
+        raise SystemExit("The RescueBridge helper refuses to run elevated (as administrator). "
+                         "Start it from a normal, non-elevated terminal.")
     ops: Any
     if fixture:
         from rescuebridge.host.fixture_ops import FixtureOps

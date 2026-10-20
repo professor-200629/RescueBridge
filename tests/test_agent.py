@@ -106,6 +106,31 @@ async def test_llm_interpretation_drives_the_same_mcp_flow(tmp_path):
     assert calls == []  # proposing changes nothing
 
 
+async def test_misread_negative_answer_cannot_resolve_an_issue(tmp_path):
+    """Measured failure: the 3B model read 'not at all' as yes. The server's polarity check must refuse it."""
+    from rescuebridge.domain.enums import UserResultSource
+    from rescuebridge.domain.service import DomainError, Principal
+
+    async with running_backend(tmp_path) as be:
+        be.ops.state.endpoints[0].muted = True
+        phone, _ = await pair_device(be)
+        out = (await phone.post("/api/utterance", json={"text": "I can't hear anything"})).json()
+        prop = out["status"]["issues"][0]["open_proposals"][0]
+        await phone.post(f"/api/proposals/{prop['proposal_id']}/approve", json={"digest": prop["digest"]})
+        dev = be.ctx.store.one("SELECT id FROM devices WHERE revoked_at IS NULL")["id"]
+        issue_id = out["status"]["issues"][0]["issue_id"]
+        msg = {"id": "msg_notatall01", "mission_id": None, "device_id": dev, "role": "user", "text": "not at all",
+               "input_mode": "voice", "created_at": 10**13, "meta": None}
+        be.ctx.store.insert("messages", msg)
+        with pytest.raises(DomainError) as e:  # what a model that misread the answer would request
+            be.ctx.service.record_user_result(Principal(dev, None, "mcp"), issue_id, "works",
+                                              source=UserResultSource.MODEL_INTERPRETED_UTTERANCE,
+                                              utterance_id=msg["id"])
+        assert e.value.code == "AMBIGUOUS"
+        assert be.ctx.store.get("issues", issue_id)["state"] == "AWAITING_USER_CONFIRMATION"
+        await phone.aclose()
+
+
 def test_keyword_interpreter_examples():
     it = interpret("My clicks are wrong and I can't hear anything")
     assert set(it.categories) == {"mouse_buttons_wrong", "no_sound"}

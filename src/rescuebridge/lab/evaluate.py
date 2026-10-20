@@ -218,6 +218,67 @@ async def run_scenario(sc: dict[str, Any], provider: str, model: str, work: Path
     return row
 
 
+def baseline_scenario(sc: dict[str, Any]) -> dict[str, Any]:
+    """DELIBERATELY SIMPLE command-success baseline (a strawman, labelled as such).
+
+    Applies the obvious fix for every recognised symptom immediately through the same HelperEngine, with no
+    question, approval, or verification, and reports "fixed" whenever the command returns OK. Scored against
+    the same ground truth as RescueBridge. It exists only to show which failure modes RescueBridge's
+    approval + verification + confirmation design is meant to prevent.
+    """
+    from rescuebridge.agent.interpret import interpret
+    from rescuebridge.host.engine import HelperEngine
+
+    ops = make_fixture(sc["fixture"])
+    hooks = sc.get("hooks", {})
+    _apply_setup(ops, hooks)
+    engine = HelperEngine(ops)
+    exp = sc["expect"]
+    claims: list[str] = []
+    cats = interpret(" ".join(sc["say"])).categories
+    if hooks.get("helper_unavailable"):
+        cats = []  # nothing can be executed; the baseline says it could not help
+
+    def run(action: str, params: dict[str, Any]) -> bool:
+        return bool(engine.handle({"op": "execute", "revision": 1, "operation_id": "op_baseline", "action": action,
+                                   "params": params}).get("ok"))
+
+    for cat in cats:
+        ok = False
+        if cat == "mouse_buttons_wrong":
+            cur = ops.mouse_state()["swap_effective"]
+            ok = run("SET_MOUSE_PRIMARY", {"swap": False, "expect_swap": cur})  # "reset to default"
+        elif cat == "no_sound":
+            d = engine.handle({"op": "observe", "kind": "audio"})["result"]["default"]
+            if d:
+                ok = run("SET_AUDIO_ENDPOINT", {"endpoint_id": d["endpoint_id"], "mute": False,
+                                                "volume_scalar": max(0.5, d["volume_scalar"]),
+                                                "expect_muted": d["muted"], "expect_volume_scalar": d["volume_scalar"]})
+        elif cat == "window_missing":
+            w = engine.handle({"op": "observe", "kind": "windows"})["result"]
+            for c in [c for c in w["candidates"] if c["offscreen"] and c["supported"]]:
+                ok = run("MOVE_WINDOW", {"target_ref": c["target_ref"], "rect": [400, 200, 1200, 800],
+                                         "monitors_fingerprint": w["monitors_fingerprint"]}) or ok
+        if ok:
+            claims.append(cat)
+    mutations = [c[0] for c in ops.calls if c[0] in MUTATING]
+    false_claims = [c for c in claims if exp["issues"].get(c) != "RESOLVED"]
+    incorrect = [m for m in mutations if m not in exp.get("allowed", [])]
+    return {"id": sc["id"], "title": sc["title"], "claimed_fixed": claims, "false_completion_claims": false_claims,
+            "mutations": mutations, "incorrect_changes": incorrect}
+
+
+def run_baseline(name: str, scenarios: list[dict[str, Any]]) -> dict[str, Any]:
+    rows = [baseline_scenario(sc) for sc in scenarios]
+    return {"summary": {"set": name, "baseline": "deliberately simple command-success baseline (strawman)",
+                        "executed": len(rows),
+                        "incorrect_changes": sum(len(r["incorrect_changes"]) for r in rows),
+                        "false_completion_claims": sum(len(r["false_completion_claims"]) for r in rows),
+                        "scenarios_with_incorrect_change": sum(1 for r in rows if r["incorrect_changes"]),
+                        "scenarios_with_false_claim": sum(1 for r in rows if r["false_completion_claims"])},
+            "rows": rows}
+
+
 async def run_set(name: str, scenarios: list[dict[str, Any]], provider: str, model: str) -> dict[str, Any]:
     rows = []
     with tempfile.TemporaryDirectory(prefix="rb-eval-", ignore_cleanup_errors=True) as tmp:
@@ -247,14 +308,16 @@ def run(set_names: list[str], provider: str, model: str, out_dir: Path) -> Path:
     files = {"fixture": root / "scenarios" / "fixture_scenarios.json", "heldout": root / "scenarios" / "heldout_scenarios.json"}
     started = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     results = []
+    baselines = []
     for name in set_names:
         scenarios = json.loads(files[name].read_text(encoding="utf-8"))["scenarios"]
         results.append(anyio.run(run_set, name, scenarios, provider, model))
+        baselines.append(run_baseline(name, scenarios))
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d_%H%M%S")
     path = out_dir / f"eval_{provider}_{stamp}.json"
     path.write_text(json.dumps({"started_at": started, "evidence_kind": "FIXTURE SIMULATION (no real Windows, no real people)",
-                                "results": results}, indent=2), encoding="utf-8")
+                                "results": results, "command_success_baseline": baselines}, indent=2), encoding="utf-8")
     md = [f"# Fixture evaluation — provider `{provider}`" + (f" / `{model}`" if provider != "rules" else ""),
           "", f"Started {started}. Evidence kind: FIXTURE SIMULATION (simulated OS and simulated person).", ""]
     for res in results:
@@ -275,6 +338,15 @@ def run(set_names: list[str], provider: str, model: str, out_dir: Path) -> Path:
                       f"{', '.join(f'{k}={v}' for k, v in (r.get('final_states') or {}).items())} | "
                       f"{', '.join(r.get('mutations', [])) or '-'} | {r.get('taps', '-')} | {notes} |")
         md.append("")
+    md += ["## Deliberately simple command-success baseline (strawman, same fixture and helper engine)", "",
+           "Applies the obvious fix immediately, no questions/approval/verification, and says \"fixed\" when the command "
+           "returns OK. Shown only to make the prevented failure modes visible.", "",
+           "| set | scenarios | incorrect changes | false 'fixed' claims |", "|---|---|---|---|"]
+    for b in baselines:
+        s = b["summary"]
+        md.append(f"| {s['set']} | {s['executed']} | {s['incorrect_changes']} (in {s['scenarios_with_incorrect_change']} scenarios) | "
+                  f"{s['false_completion_claims']} (in {s['scenarios_with_false_claim']} scenarios) |")
+    md.append("")
     mdp = path.with_suffix(".md")
     mdp.write_text("\n".join(md), encoding="utf-8")
     for res in results:
@@ -282,5 +354,9 @@ def run(set_names: list[str], provider: str, model: str, out_dir: Path) -> Path:
         print(f"[{s['set']}] {s['passed']}/{s['executed']} passed; incorrect changes {s['incorrect_changes']}; "
               f"false claims {s['false_completion_claims']}; fallback taps {s['interpretation_fallback_taps']}; "
               f"utterance median {s['utterance_latency_ms']['median']} ms")
+    for b in baselines:
+        s = b["summary"]
+        print(f"[{s['set']}] command-success BASELINE: incorrect changes {s['incorrect_changes']}, "
+              f"false 'fixed' claims {s['false_completion_claims']}")
     print(f"evidence: {path} and {mdp}")
     return path

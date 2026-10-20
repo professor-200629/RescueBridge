@@ -1,6 +1,6 @@
 {
   "started_at": "2026-10-20T23:12:40+0530",
-  "host": "Professor04",
+  "host": "test laptop (name redacted)",
   "cpu": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel",
   "ollama_url": "http://127.0.0.1:11434",
   "cases": 8,

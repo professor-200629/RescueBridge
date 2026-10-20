@@ -8,7 +8,6 @@ Writes JSON evidence. Changes nothing on Windows; downloads nothing.
 from __future__ import annotations
 
 import json
-import platform
 import time
 from pathlib import Path
 from statistics import median
@@ -96,7 +95,7 @@ async def bench(models: list[str], url: str, timeout_s: float, root: Path) -> di
             "heldout_v1_symptoms": [(c["text"], set(c["expected"])) for c in held["symptoms"]],
             "heldout_v2_symptoms": [(c["text"], set(c["expected"])) for c in held2["symptoms"]]}
     answer_sets = {"heldout_v1_answers": held["answers"], "heldout_v2_answers": held2["answers"]}
-    res: dict[str, Any] = {"started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "host": platform.node(),
+    res: dict[str, Any] = {"started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "host": "test laptop (name redacted)",
                            "interpreters": []}
 
     async def keyword(text: str, _q: str | None) -> tuple[Interpretation, int]:
