@@ -95,9 +95,13 @@ def _set_cookie(resp: Response, request: Request, name: str, value: str, *, max_
 
 def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = None) -> Starlette:
     s: Settings = ctx.settings
-    ollama = OllamaProvider(s.ollama_url, s.ollama_model) if s.model_provider == "ollama" else None
-    agent = Agent(provider_kind=s.model_provider, ollama=ollama, max_turns=s.agent_max_model_turns,
-                  max_tool_calls=s.agent_max_tool_calls, timeout_s=s.agent_timeout_s)
+    from rescuebridge.agent.llm_interpret import OllamaInterpreter
+
+    ollama = OllamaProvider(s.ollama_url, s.ollama_model) if s.model_provider == "ollama-tools" else None
+    interpreter = OllamaInterpreter(s.ollama_url, s.ollama_model) if s.model_provider == "ollama" else None
+    llm = ollama or interpreter
+    agent = Agent(provider_kind=s.model_provider, ollama=ollama, interpreter=interpreter,
+                  max_turns=s.agent_max_model_turns, max_tool_calls=s.agent_max_tool_calls, timeout_s=s.agent_timeout_s)
     origins = {f"http://127.0.0.1:{s.bff_port}", f"http://localhost:{s.bff_port}"}
     hosts = {f"127.0.0.1:{s.bff_port}", f"localhost:{s.bff_port}"}
     if lan_url:
@@ -237,8 +241,8 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         return JSONResponse({
             "paired": True, "role": sess.role, "device_name": sess.device_name, "csrf_token": sess.csrf_token,
             "host_name": host_name(), "model_provider": s.model_provider,
-            "model": s.ollama_model if s.model_provider == "ollama" else "keyword interpreter (no language model)",
-            "model_data_destination": ollama.data_destination if ollama else "none (runs inside the RescueBridge backend)",
+            "model": s.ollama_model if llm else "keyword interpreter (no language model)",
+            "model_data_destination": llm.data_destination if llm else "none (runs inside the RescueBridge backend)",
             "host_adapter": s.host_adapter, "agent_limits": {"model_turns": s.agent_max_model_turns,
                                                              "tool_calls": s.agent_max_tool_calls,
                                                              "timeout_s": s.agent_timeout_s},
@@ -462,7 +466,7 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         obs = ctx.store.all("SELECT id, kind, adapter_mode, status, observed_at, expires_at, model_facts, error FROM observations "
                             "WHERE mission_id = ? ORDER BY observed_at DESC LIMIT 20", (m["id"] if m else "",))
         return JSONResponse({"agent_runs": runs, "observations": obs, "settings": {
-            "model_provider": s.model_provider, "ollama_model": s.ollama_model if ollama else None,
+            "model_provider": s.model_provider, "ollama_model": s.ollama_model if llm else None,
             "host_adapter": s.host_adapter, "mcp_url": st.mcp_url}})
 
     async def handoff(request: Request) -> Response:

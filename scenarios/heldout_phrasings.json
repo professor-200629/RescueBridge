@@ -1,0 +1,37 @@
+{
+  "_note": "Held-out phrasings. Written on 2026-10-20 after the keyword interpreter and before the LLM interpreter prompt, and NOT used to tune either. Authored by the same developer (Claude Code), so they are not independent user data. Results are reported as measured; interpreters are not edited to pass them.",
+  "symptoms": [
+    {"text": "Whenever I press the mouse it shows that small menu instead of selecting", "expected": ["mouse_buttons_wrong"]},
+    {"text": "audio is dead, nothing coming out", "expected": ["no_sound"]},
+    {"text": "my document editor is not on the screen anymore but it's still in the taskbar", "expected": ["window_missing"]},
+    {"text": "the arrow on screen is stuck, it doesn't budge", "expected": ["mouse_not_moving"]},
+    {"text": "zoom call starting, speakers silent and the main click acts like a right click", "expected": ["no_sound", "mouse_buttons_wrong"]},
+    {"text": "printer is not printing", "expected": ["other"]},
+    {"text": "I lost the WorkPad, where did it go", "expected": ["window_missing"]},
+    {"text": "can't hear a thing from the laptop", "expected": ["no_sound"]},
+    {"text": "buttons on my mouse seem reversed", "expected": ["mouse_buttons_wrong"]},
+    {"text": "Excel keeps crashing", "expected": ["other"]},
+    {"text": "the notes app went somewhere off the edge of the monitor", "expected": ["window_missing"]},
+    {"text": "volume is all the way down and muted I think", "expected": ["no_sound"]},
+    {"text": "everything I click opens a context menu, also I cannot hear my teacher", "expected": ["mouse_buttons_wrong", "no_sound"]},
+    {"text": "screen is black", "expected": ["other"]},
+    {"text": "my cursor won't move at all", "expected": ["mouse_not_moving"]},
+    {"text": "help, my notes vanished and there's no audio", "expected": ["window_missing", "no_sound"]},
+    {"text": "the left button behaves like the right one", "expected": ["mouse_buttons_wrong"]},
+    {"text": "I need to fix my keyboard, some keys don't type", "expected": ["other"]},
+    {"text": "speaker shows a red cross and nothing plays", "expected": ["no_sound"]},
+    {"text": "where is my notepad window, it was here a second ago", "expected": ["window_missing"]}
+  ],
+  "answers": [
+    {"question": "mouse_preference", "text": "I'm a lefty", "expected": {"primary_button": "right"}},
+    {"question": "mouse_preference", "text": "normal way please", "expected": {"primary_button": "left"}},
+    {"question": "mouse_preference", "text": "the usual one, left", "expected": {"primary_button": "left"}},
+    {"question": "mouse_preference", "text": "I use my left hand for the mouse", "expected": {"primary_button": "right"}},
+    {"question": "mouse_preference", "text": "I'm right-handed", "expected": {"primary_button": "left"}},
+    {"question": "confirmation", "text": "yeah that worked", "expected": {"answer": "yes"}},
+    {"question": "confirmation", "text": "nope still silent", "expected": {"answer": "no"}},
+    {"question": "confirmation", "text": "I heard a beep", "expected": {"answer": "yes"}},
+    {"question": "confirmation", "text": "didn't hear anything", "expected": {"answer": "no"}},
+    {"question": "confirmation", "text": "yes I can see it now", "expected": {"answer": "yes"}}
+  ]
+}

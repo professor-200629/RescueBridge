@@ -99,8 +99,8 @@ def load_settings(**overrides: object) -> Settings:
     settings = Settings(**env)  # type: ignore[arg-type]
     if settings.host_adapter not in {"helper", "fixture"}:
         raise ValueError(f"RB_HOST_ADAPTER must be 'helper' or 'fixture', got {settings.host_adapter!r}")
-    if settings.model_provider not in {"ollama", "rules"}:
-        raise ValueError(f"RB_MODEL_PROVIDER must be 'ollama' or 'rules', got {settings.model_provider!r}")
+    if settings.model_provider not in {"ollama", "rules", "ollama-tools"}:
+        raise ValueError(f"RB_MODEL_PROVIDER must be 'rules', 'ollama' or 'ollama-tools', got {settings.model_provider!r}")
     return settings
 
 

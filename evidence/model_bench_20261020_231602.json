@@ -1,0 +1,266 @@
+{
+  "started_at": "2026-10-20T23:12:40+0530",
+  "host": "Professor04",
+  "cpu": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel",
+  "ollama_url": "http://127.0.0.1:11434",
+  "cases": 8,
+  "models": {
+    "qwen2.5:3b-instruct": {
+      "correct": 0,
+      "total": 8,
+      "schema_ok": 0,
+      "errors": 0,
+      "cold_first_ms": 62665,
+      "warm_median_ms": 4312,
+      "warm_max_ms": 12235,
+      "rows": [
+        {
+          "text": "My clicks are wrong and I can't hear anything",
+          "expected": [
+            "mouse_buttons_wrong",
+            "no_sound"
+          ],
+          "tool_calls": [],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 62665,
+          "cold": true,
+          "content_preview": "Symptom: mouse_buttons_wrong [issue_id: issue_1]"
+        },
+        {
+          "text": "The sound is gone completely",
+          "expected": [
+            "no_sound"
+          ],
+          "tool_calls": [],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 2607,
+          "cold": false,
+          "content_preview": "Inspect why the sound is muted."
+        },
+        {
+          "text": "My notes window disappeared",
+          "expected": [
+            "window_missing"
+          ],
+          "tool_calls": [
+            "inspect_recovery"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 5085,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "Left click opens the right-click menu",
+          "expected": [
+            "mouse_buttons_wrong"
+          ],
+          "tool_calls": [
+            "inspect_recovery"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 4830,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "The mouse pointer is frozen and won't move",
+          "expected": [
+            "mouse_not_moving"
+          ],
+          "tool_calls": [
+            "inspect_recovery"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 4312,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "My wifi keeps disconnecting",
+          "expected": [
+            "other"
+          ],
+          "tool_calls": [],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 3013,
+          "cold": false,
+          "content_preview": "Cannot fix WiFi issues directly, please check your network settings."
+        },
+        {
+          "text": "I can't hear the interviewer and WorkPad vanished off the screen",
+          "expected": [
+            "no_sound",
+            "window_missing"
+          ],
+          "tool_calls": [],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 12235,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "Nothing plays through the speakers",
+          "expected": [
+            "no_sound"
+          ],
+          "tool_calls": [],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 2707,
+          "cold": false,
+          "content_preview": "Inspect why no sound is playing."
+        }
+      ]
+    },
+    "llama3.2:3b": {
+      "correct": 0,
+      "total": 8,
+      "schema_ok": 0,
+      "errors": 0,
+      "cold_first_ms": 66784,
+      "warm_median_ms": 4539,
+      "warm_max_ms": 6935,
+      "rows": [
+        {
+          "text": "My clicks are wrong and I can't hear anything",
+          "expected": [
+            "mouse_buttons_wrong",
+            "no_sound"
+          ],
+          "tool_calls": [
+            "inspect_recovery"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 66784,
+          "cold": true,
+          "content_preview": ""
+        },
+        {
+          "text": "The sound is gone completely",
+          "expected": [
+            "no_sound"
+          ],
+          "tool_calls": [
+            "record_user_result"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 6935,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "My notes window disappeared",
+          "expected": [
+            "window_missing"
+          ],
+          "tool_calls": [
+            "inspect_recovery"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 4539,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "Left click opens the right-click menu",
+          "expected": [
+            "mouse_buttons_wrong"
+          ],
+          "tool_calls": [
+            "inspect_recovery"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 4029,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "The mouse pointer is frozen and won't move",
+          "expected": [
+            "mouse_not_moving"
+          ],
+          "tool_calls": [
+            "inspect_recovery"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 4527,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "My wifi keeps disconnecting",
+          "expected": [
+            "other"
+          ],
+          "tool_calls": [
+            "inspect_recovery"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 4050,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "I can't hear the interviewer and WorkPad vanished off the screen",
+          "expected": [
+            "no_sound",
+            "window_missing"
+          ],
+          "tool_calls": [
+            "record_user_result"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 6789,
+          "cold": false,
+          "content_preview": ""
+        },
+        {
+          "text": "Nothing plays through the speakers",
+          "expected": [
+            "no_sound"
+          ],
+          "tool_calls": [
+            "record_user_result"
+          ],
+          "categories": [],
+          "schema_ok": false,
+          "correct": false,
+          "ms": 6285,
+          "cold": false,
+          "content_preview": ""
+        }
+      ]
+    }
+  },
+  "ollama_version": "0.32.3"
+}

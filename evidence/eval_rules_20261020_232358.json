@@ -1,0 +1,744 @@
+{
+  "started_at": "2026-10-20T23:23:37+0530",
+  "evidence_kind": "FIXTURE SIMULATION (no real Windows, no real people)",
+  "results": [
+    {
+      "summary": {
+        "set": "fixture",
+        "provider": "rules",
+        "model": null,
+        "executed": 24,
+        "passed": 24,
+        "incorrect_changes": 0,
+        "false_completion_claims": 0,
+        "blocked_claims": 0,
+        "resolved_without_person_confirmation": 0,
+        "unresolved_issue_outcomes": 15,
+        "interpretation_fallback_taps": 1,
+        "utterance_latency_ms": {
+          "median": 142,
+          "max": 217
+        },
+        "scenario_wall_ms_median": 624.0
+      },
+      "rows": [
+        {
+          "id": "F01",
+          "title": "muted speaker; person hears the tone",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 2,
+          "utterance_ms": [
+            166,
+            116
+          ],
+          "errors": [],
+          "wall_ms": 1322,
+          "final_states": {
+            "no_sound": "RESOLVED"
+          },
+          "mutations": [
+            "set_audio",
+            "play_tone"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F02",
+          "title": "unmuted after repair but person still cannot hear",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 1,
+          "approvals": 2,
+          "utterance_ms": [
+            155,
+            94
+          ],
+          "errors": [],
+          "wall_ms": 797,
+          "final_states": {
+            "no_sound": "UNRESOLVED"
+          },
+          "mutations": [
+            "set_audio",
+            "play_tone"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 4,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F03",
+          "title": "muted and volume 0: bounded 20% test level",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 2,
+          "utterance_ms": [
+            157,
+            124
+          ],
+          "errors": [],
+          "wall_ms": 788,
+          "final_states": {
+            "no_sound": "RESOLVED"
+          },
+          "mutations": [
+            "set_audio",
+            "play_tone"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F04",
+          "title": "not muted but volume 0",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 2,
+          "utterance_ms": [
+            145,
+            125
+          ],
+          "errors": [],
+          "wall_ms": 779,
+          "final_states": {
+            "no_sound": "RESOLVED"
+          },
+          "mutations": [
+            "set_audio",
+            "play_tone"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F05",
+          "title": "audio settings healthy: no supported cause, no change",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            142
+          ],
+          "errors": [],
+          "wall_ms": 364,
+          "final_states": {
+            "no_sound": "UNRESOLVED"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 3,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F06",
+          "title": "swapped buttons; right-handed person",
+          "provider": "rules",
+          "utterances": 3,
+          "taps": 0,
+          "approvals": 1,
+          "utterance_ms": [
+            142,
+            103,
+            63
+          ],
+          "errors": [],
+          "wall_ms": 639,
+          "final_states": {
+            "mouse_buttons_wrong": "RESOLVED"
+          },
+          "mutations": [
+            "set_mouse_swap",
+            "show_click_test"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 7,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F07",
+          "title": "intentional left-handed mapping is not changed",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            86,
+            89
+          ],
+          "errors": [],
+          "wall_ms": 366,
+          "final_states": {
+            "mouse_buttons_wrong": "UNRESOLVED"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F08",
+          "title": "mapping repaired but click test still wrong",
+          "provider": "rules",
+          "utterances": 3,
+          "taps": 0,
+          "approvals": 1,
+          "utterance_ms": [
+            116,
+            94,
+            98
+          ],
+          "errors": [],
+          "wall_ms": 637,
+          "final_states": {
+            "mouse_buttons_wrong": "UNRESOLVED"
+          },
+          "mutations": [
+            "set_mouse_swap",
+            "show_click_test"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 7,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F09",
+          "title": "WorkPad off-screen; document preserved",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 1,
+          "utterance_ms": [
+            178,
+            129
+          ],
+          "errors": [],
+          "wall_ms": 702,
+          "final_states": {
+            "window_missing": "RESOLVED"
+          },
+          "mutations": [
+            "move_window"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F10",
+          "title": "two off-screen windows: clarification picks notepad",
+          "provider": "rules",
+          "utterances": 3,
+          "taps": 0,
+          "approvals": 1,
+          "utterance_ms": [
+            180,
+            168,
+            143
+          ],
+          "errors": [],
+          "wall_ms": 936,
+          "final_states": {
+            "window_missing": "RESOLVED"
+          },
+          "mutations": [
+            "move_window"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 7,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F11",
+          "title": "elevated off-screen window is unsupported",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            162
+          ],
+          "errors": [],
+          "wall_ms": 374,
+          "final_states": {
+            "window_missing": "UNRESOLVED"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 3,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F12",
+          "title": "nothing off-screen: no change",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            163
+          ],
+          "errors": [],
+          "wall_ms": 379,
+          "final_states": {
+            "window_missing": "UNRESOLVED"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 3,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F13",
+          "title": "interview: swapped + muted + WorkPad off-screen",
+          "provider": "rules",
+          "utterances": 5,
+          "taps": 0,
+          "approvals": 4,
+          "utterance_ms": [
+            208,
+            170,
+            158,
+            126,
+            155
+          ],
+          "errors": [],
+          "wall_ms": 1815,
+          "final_states": {
+            "mouse_buttons_wrong": "RESOLVED",
+            "no_sound": "RESOLVED",
+            "window_missing": "RESOLVED"
+          },
+          "mutations": [
+            "set_mouse_swap",
+            "show_click_test",
+            "set_audio",
+            "play_tone",
+            "move_window"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 13,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F14",
+          "title": "pointer does not move: unsupported hardware symptom",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            124
+          ],
+          "errors": [],
+          "wall_ms": 373,
+          "final_states": {
+            "mouse_not_moving": "UNSUPPORTED"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 2,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F15",
+          "title": "out-of-scope problem",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            125
+          ],
+          "errors": [],
+          "wall_ms": 349,
+          "final_states": {
+            "other": "UNSUPPORTED"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 2,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F16",
+          "title": "frozen pointer + muted: partial recovery",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 2,
+          "utterance_ms": [
+            72,
+            63
+          ],
+          "errors": [],
+          "wall_ms": 449,
+          "final_states": {
+            "mouse_not_moving": "UNSUPPORTED",
+            "no_sound": "RESOLVED"
+          },
+          "mutations": [
+            "set_audio",
+            "play_tone"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F17",
+          "title": "person declines the proposal",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            111
+          ],
+          "errors": [],
+          "wall_ms": 343,
+          "final_states": {
+            "no_sound": "UNRESOLVED"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 3,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F18",
+          "title": "default endpoint switches before execution: revised proposal",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 3,
+          "utterance_ms": [
+            137,
+            169
+          ],
+          "errors": [],
+          "wall_ms": 915,
+          "final_states": {
+            "no_sound": "RESOLVED"
+          },
+          "mutations": [
+            "set_audio",
+            "play_tone"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F19",
+          "title": "monitor unplugged before execution: revised proposal",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 2,
+          "utterance_ms": [
+            199,
+            148
+          ],
+          "errors": [],
+          "wall_ms": 1037,
+          "final_states": {
+            "window_missing": "RESOLVED"
+          },
+          "mutations": [
+            "move_window"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 0
+        },
+        {
+          "id": "F20",
+          "title": "person says stop after the proposal",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            140,
+            213
+          ],
+          "errors": [],
+          "wall_ms": 649,
+          "final_states": {
+            "no_sound": "STOPPED"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 5,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F21",
+          "title": "helper unreachable: no negative claims, no changes",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 0,
+          "utterance_ms": [
+            205
+          ],
+          "errors": [],
+          "wall_ms": 425,
+          "final_states": {
+            "no_sound": "INSPECTING"
+          },
+          "mutations": [],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 3,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F22",
+          "title": "OS call fails",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 1,
+          "utterance_ms": [
+            210
+          ],
+          "errors": [],
+          "wall_ms": 562,
+          "final_states": {
+            "no_sound": "FAILED"
+          },
+          "mutations": [
+            "set_audio"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 3,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F23",
+          "title": "OS call returns success but nothing changes",
+          "provider": "rules",
+          "utterances": 1,
+          "taps": 0,
+          "approvals": 1,
+          "utterance_ms": [
+            217
+          ],
+          "errors": [],
+          "wall_ms": 601,
+          "final_states": {
+            "no_sound": "UNRESOLVED"
+          },
+          "mutations": [
+            "set_audio"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 3,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        },
+        {
+          "id": "F24",
+          "title": "muted + no off-screen window: one resolved, one not",
+          "provider": "rules",
+          "utterances": 2,
+          "taps": 0,
+          "approvals": 2,
+          "utterance_ms": [
+            204,
+            53
+          ],
+          "errors": [],
+          "wall_ms": 611,
+          "final_states": {
+            "no_sound": "RESOLVED",
+            "window_missing": "UNRESOLVED"
+          },
+          "mutations": [
+            "set_audio",
+            "play_tone"
+          ],
+          "incorrect_changes": [],
+          "false_completion_claims": [],
+          "blocked_claims": 0,
+          "model_turns": 0,
+          "tool_calls": 6,
+          "model_errors": [],
+          "model_ms": [],
+          "resolved_without_person_confirmation": 0,
+          "passed": true,
+          "unresolved_issues": 1
+        }
+      ]
+    }
+  ]
+}

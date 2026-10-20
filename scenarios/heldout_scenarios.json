@@ -1,0 +1,26 @@
+{
+  "_note": "Held-out scenario combinations and phrasings, written before any evaluation run and not used to tune interpreters or flows. Same simulated person policy as the fixture set.",
+  "scenarios": [
+    {"id": "H01", "title": "dead audio + editor gone (interview fixture)", "fixture": "interview",
+     "say": ["audio is dead and my document editor is not on the screen anymore"],
+     "person": {"hears_tone": true, "sees_window": true},
+     "expect": {"issues": {"no_sound": "RESOLVED", "window_missing": "RESOLVED"},
+                "allowed": ["set_audio", "play_tone", "move_window"]}},
+    {"id": "H02", "title": "context-menu clicks, lefty answer, intentional swap", "fixture": "left-handed",
+     "say": ["everything I click opens a context menu"], "person": {"mouse_answer": "I'm a lefty"},
+     "expect": {"issues": {"mouse_buttons_wrong": "UNRESOLVED"}, "allowed": []}},
+    {"id": "H03", "title": "reversed buttons, normal-way answer", "fixture": "swapped",
+     "say": ["buttons on my mouse seem reversed"], "person": {"mouse_answer": "normal way please", "click_ok": true},
+     "expect": {"issues": {"mouse_buttons_wrong": "RESOLVED"}, "allowed": ["set_mouse_swap", "show_click_test"]}},
+    {"id": "H04", "title": "red cross speaker; not heard after fix", "fixture": "muted",
+     "say": ["speaker shows a red cross and nothing plays"], "person": {"hears_tone": false},
+     "expect": {"issues": {"no_sound": "UNRESOLVED"}, "allowed": ["set_audio", "play_tone"]}},
+    {"id": "H05", "title": "notes off the edge + printer (partial)", "fixture": "offscreen",
+     "say": ["the notes app went somewhere off the edge of the monitor and the printer is not printing"],
+     "person": {"sees_window": true},
+     "expect": {"issues": {"window_missing": "RESOLVED", "other": "UNSUPPORTED"}, "allowed": ["move_window"]}},
+    {"id": "H06", "title": "arrow stuck + can't hear a thing", "fixture": "silent",
+     "say": ["the arrow on screen is stuck and I can't hear a thing from the laptop"], "person": {"hears_tone": true},
+     "expect": {"issues": {"mouse_not_moving": "UNSUPPORTED", "no_sound": "RESOLVED"}, "allowed": ["set_audio", "play_tone"]}}
+  ]
+}

@@ -174,6 +174,14 @@ class FixtureOps:
                 self.state.swap_saved = swap
             self._after("set_mouse_swap")
 
+    def inject_mouse_swap_temporary(self, swap: bool) -> bool:
+        """Mirror of the live-lab SwapMouseButton fault: effective mapping only, saved value untouched."""
+        with self._lock:
+            prev = self.state.swap_effective
+            self.state.swap_effective = swap
+            self.calls.append(("lab_swap_temporary", {"swap": swap}))
+            return prev
+
     # --- audio -------------------------------------------------------------------------------
     def audio_endpoints(self) -> list[Endpoint]:
         self._observe("audio")

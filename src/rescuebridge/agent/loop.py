@@ -35,6 +35,9 @@ CLAIM_RE = re.compile(r"\b(fixed|resolved|solved|repaired|working (again|now|fin
 APPROVAL_RE = re.compile(r"\b(i('ve| have)? approved|approved (it|this|that|the change)|i('ll| will) approve|"
                          r"you('ve| have) (already )?approved|approval (is )?(granted|given))\b", re.I)
 NEGATION_RE = re.compile(r"\b(not|n't|no longer|yet to|until|unless|once|after you|if)\b", re.I)
+PROBLEM_RE = re.compile(r"\b(not working|isn'?t working|doesn'?t work|won'?t|can'?t|cannot|broken|keeps|crash\w*|"
+                        r"error|slow|problem|issue|disconnect\w*|fail\w*|not (printing|loading|opening|starting|"
+                        r"connecting|charging|responding))\b", re.I)
 
 
 @dataclass
@@ -127,21 +130,44 @@ def describe_issue_result(r: dict[str, Any]) -> str:
     return f"Status: {str(state).replace('_', ' ').lower()}."
 
 
+def pending_question(status: dict[str, Any]) -> str | None:
+    """The one question the person is currently being asked (context for interpreting a short answer)."""
+    for i in status.get("issues", []):
+        if i.get("state") == "NEEDS_CLARIFICATION" and i.get("question"):
+            return str(i["question"])
+    for i in status.get("issues", []):
+        if i.get("state") == "AWAITING_USER_CONFIRMATION":
+            return str((i.get("confirmation") or {}).get("question") or "Does it work now?")
+    return None
+
+
 class Agent:
+    """Provider kinds:
+    - "rules": keyword interpreter (no language model) + deterministic orchestration over MCP.
+    - "ollama": local LLM interprets the utterance into closed fields (one schema-constrained call) +
+      the same deterministic orchestration over MCP.
+    - "ollama-tools": EXPERIMENTAL free tool-calling loop by the local LLM (measured unreliable on 3B models).
+    """
+
     def __init__(self, *, provider_kind: str, ollama: OllamaProvider | None, max_turns: int, max_tool_calls: int,
-                 timeout_s: float) -> None:
+                 timeout_s: float, interpreter: Any = None) -> None:
         self.provider_kind = provider_kind
         self.ollama = ollama
+        self.interpreter = interpreter
         self.max_turns = max_turns
         self.max_tool_calls = max_tool_calls
         self.timeout_s = timeout_s
 
     async def run(self, mcp: McpToolClient, utterance_id: str, text: str,
                   history: list[dict[str, str]]) -> AgentResult:
-        if self.provider_kind == "ollama" and self.ollama is not None:
+        if self.provider_kind == "ollama-tools" and self.ollama is not None:
             res = await self._run_llm(mcp, utterance_id, text, history)
+        elif self.provider_kind == "ollama":
+            if self.interpreter is None:
+                raise RuntimeError("ollama provider configured without an interpreter")
+            res = await self._run_structured(mcp, utterance_id, text, self.interpreter)
         else:
-            res = await self._run_rules(mcp, utterance_id, text)
+            res = await self._run_structured(mcp, utterance_id, text, None)
         res.protocol_version = mcp.protocol_version
         status, _ = await mcp.call("get_recovery_status", {})
         res.text, res.blocked_claims = guard_claims(res.text, status)
@@ -152,7 +178,7 @@ class Agent:
     async def _run_llm(self, mcp: McpToolClient, utterance_id: str, text: str,
                        history: list[dict[str, str]]) -> AgentResult:
         assert self.ollama is not None
-        res = AgentResult(text="", provider="ollama", model=self.ollama.model)
+        res = AgentResult(text="", provider="ollama-tools", model=self.ollama.model)
         deadline = time.monotonic() + self.timeout_s
         tools = await mcp.list_tools()
         status, _ = await mcp.call("get_recovery_status", {})
@@ -205,10 +231,10 @@ class Agent:
             res.text = " ".join(p for p in [*parts[-2:], note] if p)
         return res
 
-    # ------------------------------------------------------------------------------- rules strategy
-    async def _run_rules(self, mcp: McpToolClient, utterance_id: str, text: str) -> AgentResult:
-        res = AgentResult(text="", provider="rules", model=None)
-        it = interpret(text)
+    # ------------------------------------------------------------------------------- structured strategy
+    async def _run_structured(self, mcp: McpToolClient, utterance_id: str, text: str, interpreter: Any) -> AgentResult:
+        res = AgentResult(text="", provider="ollama" if interpreter else "rules",
+                          model=interpreter.model if interpreter else None)
         said: list[str] = []
         results: list[dict[str, Any]] = []
         budget = self.max_tool_calls
@@ -223,12 +249,31 @@ class Agent:
             payload, _ = await mcp.call(name, args)
             return payload
 
+        status = await call("get_recovery_status", {})
+        if interpreter is None:
+            it = interpret(text)
+            # An unrecognised problem description is recorded as an explicit UNSUPPORTED issue (tracked and
+            # explained) rather than ignored, but only when no question is waiting for an answer.
+            if (not it.categories and not (it.yes or it.no or it.stop or it.undo or it.primary_button)
+                    and pending_question(status) is None and PROBLEM_RE.search(text)):
+                it.categories = ["other"]
+        else:
+            try:
+                it, ms = await interpreter.interpret(text, pending_question(status), timeout_s=self.timeout_s)
+            except ProviderError as exc:
+                res.error = str(exc)
+                res.timed_out = "timed out" in str(exc)
+                res.stop_reason = "model_timeout" if res.timed_out else "model_error"
+                res.text = ("I couldn't interpret that with the local language model (" + str(exc)[:120] + "). "
+                            "Nothing was changed. Please rephrase, use the buttons on screen, or press Stop.")
+                return res
+            res.model_turns = 1
+            res.model_latency_ms.append(ms)
         if it.stop:
             r = await call("stop_recovery", {"reason": "person said stop"})
             res.text = ("Stopped. No further changes will be made." if r.get("stop_state") == "CONFIRMED" else
                         "Stop recorded. I could not reach the laptop helper, so whether it has stopped is unknown.")
             return res
-        status = await call("get_recovery_status", {})
         issues = status.get("issues", [])
         mission = status.get("mission")
         active = mission is not None and mission.get("state") == "ACTIVE"
