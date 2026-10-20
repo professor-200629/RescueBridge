@@ -19,9 +19,12 @@ qwen2.5:3b-instruct and llama3.2:3b (no downloads by this project). MCP SDK 2.3.
 | 3 UX + model/voice | browser app done; voice code written but not exercised with a microphone; local LLM measured (tool-calling 0/8; schema interpretation 20/20 held-out v1 symptoms) |
 | 4 Validation + submission | tests/eval/bench/docs done; pending: live lab, phone, fresh-clone setup timing, video, publishing |
 
-## Last verified checks
+## Last verified checks (2026-10-20, ~23:55 IST)
 
-See `docs/VALIDATION.md` (exact commands and numbers). Latest: `pytest` 63 passed; ruff and mypy clean.
+See `docs/VALIDATION.md` for exact commands and numbers. Summary: `pytest` 70 passed (also in a fresh clone);
+ruff and mypy clean; Edge browser smoke test passes; fixture evaluation 24/24 (keyword and LLM providers),
+held-out 2/6 (keyword) and 5/6 (LLM); 0 incorrect changes and 0 false completion claims in every evaluation run;
+start/stop/check scripts exercised (stop.ps1 parse bug found and fixed).
 
 ## Next actions (in order)
 

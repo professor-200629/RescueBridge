@@ -22,7 +22,8 @@ param(
   [string]$Scenario = "healthy",
   [ValidateSet("rules", "ollama", "ollama-tools")][string]$Provider = "rules",
   [string]$Model = "qwen2.5:3b-instruct",
-  [string]$DataDir = ""
+  [string]$DataDir = "",
+  [switch]$NoBrowser
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -64,7 +65,11 @@ while ($true) {
   Start-Sleep -Milliseconds 400
 }
 $link = (Get-Content (Join-Path $data "host_link.txt") -Raw).Trim()
-Write-Host "Opening the host console on this laptop (one-time link)..." -ForegroundColor Green
-Start-Process $link
+if ($NoBrowser) {
+  Write-Host "Host console link written to $(Join-Path $data 'host_link.txt') (one-time, 10 minutes)." -ForegroundColor Green
+} else {
+  Write-Host "Opening the host console on this laptop (one-time link)..." -ForegroundColor Green
+  Start-Process $link
+}
 Write-Host "Phone/desktop app: http://127.0.0.1:8740/ $(if ($Lan) {'(phone: see the LAN address in the host console)'})"
 Write-Host "Stop everything:   powershell -ExecutionPolicy Bypass -File scripts\stop.ps1"

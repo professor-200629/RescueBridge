@@ -131,6 +131,14 @@ server's polarity check rejects recording that as a success (`test_misread_negat
 
 Fresh `git clone` of commit `3a94d4e` into `%TEMP%`, then `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1`: **11.1 s** total (uv sync --frozen 4.7 s, npm ci 2.6 s, web build 1.7 s, doctor 2.0 s; `evidence/setup_timing_*.json` in the clone). This used warm uv/npm caches on the developer machine: it is not a cold first install and not a measurement on someone else's laptop. The doctor in the clone reported FAIL only for "Windows helper" (not started yet), as expected before `start.ps1`. Then `pytest -q` in the clone: 70 passed (32.8 s).
 
+## 5b. Scripts
+
+| Script | Result |
+|---|---|
+| `scripts\check.ps1` | ruff pass, mypy pass, pytest pass (70), web typecheck pass; exit 0; 47.4 s |
+| `scripts\start.ps1 -NoBrowser -DataDir .smoke-start` (real Windows mode) | helper + backend healthy in 6.4 s; `doctor`: helper reachable (real_windows, fence 1), backend 200, unauthenticated MCP 401 |
+| `scripts\stop.ps1` | **bug found by running it**: `"$pidFile:"` is parsed as a drive-qualified variable, so the script failed to parse. Fixed (`"${pidFile}:"`); after the fix it stopped exactly the two RescueBridge processes and left none running |
+
 ## 6. Not run (unverified)
 
 - **Real Windows changes** (mute/unmute, volume, mouse primary button, window move, test tone, click-test window):

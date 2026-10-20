@@ -63,4 +63,4 @@ code inspection.
 - Host console polls every 3 s; phone polls every 2 s (no push).
 - The helper key and pipe name are fixed per user; two Windows users on one laptop would need separate pipe
   names (`RB_HELPER_PIPE`).
-- Evaluation and benchmark JSON files are machine-specific and include the laptop's host name.
+- Evaluation and benchmark JSON files are machine-specific (timings from this laptop only); host names are redacted.
