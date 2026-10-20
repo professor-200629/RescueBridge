@@ -74,6 +74,50 @@ def default_state() -> FixtureState:
     return st
 
 
+def _offscreen(st: FixtureState, hwnd: int, rect: tuple[int, int, int, int]) -> None:
+    w = next(x for x in st.windows if x.hwnd == hwnd)
+    w.rect = rect
+    w.frame = (rect[0] + 7, rect[1], rect[2] - 7, rect[3] - 7)
+
+
+def _mute(st: FixtureState, vol: float = 0.24) -> None:
+    st.endpoints[0].muted = True
+    st.endpoints[0].volume_scalar = vol
+
+
+def _swap(st: FixtureState) -> None:
+    st.swap_effective = True  # temporary change: the saved setting still says "not swapped"
+
+
+def _elevated_notepad(st: FixtureState) -> None:
+    w = next(x for x in st.windows if x.hwnd == 0x2C3D)
+    w.integrity = "higher"
+    _offscreen(st, 0x2C3D, (-1400, 200, -500, 800))
+
+
+SCENARIOS: dict[str, Callable[[FixtureState], None]] = {
+    "healthy": lambda st: None,
+    "muted": _mute,
+    "silent": lambda st: _mute(st, 0.0),
+    "volume-zero": lambda st: setattr(st.endpoints[0], "volume_scalar", 0.0),
+    "swapped": _swap,
+    "left-handed": lambda st: (setattr(st, "swap_effective", True), setattr(st, "swap_saved", True)) and None,
+    "offscreen": lambda st: _offscreen(st, 0x1A2B, (2500, 300, 3300, 900)),
+    "two-offscreen": lambda st: (_offscreen(st, 0x1A2B, (2500, 300, 3300, 900)),
+                                 _offscreen(st, 0x2C3D, (-1400, 200, -500, 800))) and None,
+    "elevated-offscreen": _elevated_notepad,
+    "interview": lambda st: (_swap(st), _mute(st), _offscreen(st, 0x1A2B, (2500, 300, 3300, 900))) and None,
+}
+
+
+def make_fixture(scenario: str = "healthy") -> FixtureOps:
+    if scenario not in SCENARIOS:
+        raise ValueError(f"unknown fixture scenario {scenario!r}; choose from {sorted(SCENARIOS)}")
+    ops = FixtureOps()
+    SCENARIOS[scenario](ops.state)
+    return ops
+
+
 class FixtureOps:
     mode = "fixture_simulation"
 

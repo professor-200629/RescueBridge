@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rescuebridge-fixture",
+      "runtimeExecutable": "C:\\dev\\RescueBridge\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": ["-m", "rescuebridge.cli", "--data-dir", "C:\\dev\\RescueBridge\\.smoke-data", "serve", "--fixture", "--fixture-scenario", "interview", "--provider", "rules"],
+      "port": 8740
+    }
+  ]
+}

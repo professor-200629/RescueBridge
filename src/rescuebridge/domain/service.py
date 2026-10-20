@@ -210,6 +210,8 @@ class RecoveryService:
                 check(cur, new)
             except TransitionError as exc:
                 raise DomainError("INVALID_STATE", str(exc), state=cur.value) from exc
+        if new == IssueState.INSPECTING:
+            changes.setdefault("next_manual_step", None)  # a fresh inspection supersedes earlier advice
         changes.update({"state": new.value, "updated_at": now_ms()})
         with self.store.tx():
             self.store.update("issues", issue["id"], changes)

@@ -245,11 +245,24 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
             "lan_url": st.lan_url, "secure_context_hint": request.url.scheme == "https" or request.url.hostname in ("127.0.0.1", "localhost"),
         })
 
+    async def refresh_helper_health() -> None:
+        """Cheap liveness probe (at most every 10 s) so connection status is observed, not assumed."""
+        last = ctx.service.last_helper_health.get("checked_at") or 0
+        if now_ms() - last < 10_000:
+            return
+        try:
+            h = await ctx.host_client.health(timeout_s=1.5)
+            ctx.service.last_helper_health = {"reachable": bool(h.get("ok")), "checked_at": now_ms(),
+                                              "mode": h.get("mode")}
+        except Exception as exc:  # noqa: BLE001 - unreachable is a reportable state
+            ctx.service.last_helper_health = {"reachable": False, "checked_at": now_ms(), "error": str(exc)[:200]}
+
     async def state(request: Request) -> Response:
         sess, bad = require(request, "device")
         if bad:
             return bad
         assert sess
+        await refresh_helper_health()
         return JSONResponse(state_payload(sess))
 
     async def utterance(request: Request) -> Response:
@@ -327,6 +340,10 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
             else:
                 op = applied.get("operation", {})
                 outcome = op.get("outcome")
+                if proposal["kind"] == "TEST" and outcome == "APPLIED_STATE_NOT_VERIFIED":
+                    lines.append("The test tone was played (the playback call returned). Only you can tell whether "
+                                 "it was audible.")
+                    outcome = "_handled"
                 lines.append({
                     "APPLIED_STATE_VERIFIED": f"Done, and observed: {op.get('observed_after')}.",
                     "APPLIED_STATE_NOT_VERIFIED": "The change was sent but " + (applied.get("note") or "could not be confirmed."),
@@ -335,6 +352,7 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
                     "FAILED": "Windows reported a failure; nothing is confirmed changed.",
                     "OUTCOME_UNKNOWN": str(applied.get("note") or "The outcome is unknown."),
                     "NOT_ATTEMPTED": "The change was not attempted: " + str(applied.get("note") or ""),
+                    "_handled": "",
                 }.get(str(outcome), f"Outcome: {outcome}"))
                 if proposal["kind"] == "TEST":
                     lines.append("Did you hear the tone?")
@@ -346,7 +364,24 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
                     if issue and issue["state"] == "VERIFYING":
                         verified, _ = await mcp.call("verify_recovery", {"issue_id": proposal["issue_id"]})
                         lines.append(describe_issue_result(verified))
-        reply = store_message(sess.device_id, "assistant", " ".join(lines), None, {"after_approval": pid})
+        reply = store_message(sess.device_id, "assistant", " ".join(x for x in lines if x), None, {"after_approval": pid})
+        return JSONResponse({"reply": reply, **state_payload(sess)})
+
+    async def answer(request: Request) -> Response:
+        """A tapped clarification option. Routed through MCP propose_recovery like a spoken answer."""
+        sess, bad = require(request, "device")
+        if bad:
+            return bad
+        assert sess and sess.device_id
+        b = await body(request)
+        field_name, value = b.get("field"), b.get("value")
+        if field_name not in ("primary_button", "target_ref", "volume_percent"):
+            return _err("BAD_FIELD", "unknown answer field")
+        args: dict[str, Any] = {"issue_id": request.path_params["issue_id"], field_name: value}
+        store_message(sess.device_id, "user", f"(tapped) {b.get('label') or value}"[:200], "button")
+        async with lock_for(sess.device_id), await with_mcp(sess) as mcp:
+            r, _ = await mcp.call("propose_recovery", args)
+        reply = store_message(sess.device_id, "assistant", describe_issue_result(r))
         return JSONResponse({"reply": reply, **state_payload(sess)})
 
     async def decline(request: Request) -> Response:
@@ -470,6 +505,12 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         except Exception as exc:  # noqa: BLE001
             helper = {"reachable": False, "error": str(exc)[:200]}
         code = st.pairing_code if st.pairing_code and st.pairing_code["expires_at"] > now_ms() else None
+        if code:
+            row = ctx.store.get("pairing_codes", code["code_id"])
+            if not row or row["used_at"]:
+                code = None  # one-use: never show a code that has been consumed or burned
+        if code:
+            code = {k: v for k, v in code.items() if k != "code_id"}
         arming = read_arming(s)
         missions = ctx.store.all("SELECT m.id, m.state, m.stop_state, m.created_at, d.name AS device_name FROM missions m "
                                  "LEFT JOIN devices d ON d.id = m.device_id ORDER BY m.created_at DESC LIMIT 5")
@@ -485,9 +526,10 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         code = auth.create_pairing_code()
         base = st.lan_url or f"http://127.0.0.1:{s.bff_port}"
         pair_url = f"{base}/#pair={code['code']}"  # fragment: never sent to the server or logged
-        qr = segno.make(pair_url, error="m").svg_inline(scale=5, dark="#000", light="#fff")
-        st.pairing_code = {"code": code["code"], "expires_at": code["expires_at"], "qr_svg": qr, "url": base}
-        return JSONResponse({"pairing": st.pairing_code})
+        qr = segno.make(pair_url, error="m").svg_data_uri(scale=5, dark="#000", light="#fff")
+        st.pairing_code = {"code": code["code"], "expires_at": code["expires_at"], "qr_data_uri": qr, "url": base,
+                           "code_id": code["code_id"]}
+        return JSONResponse({"pairing": {k: v for k, v in st.pairing_code.items() if k != "code_id"}})
 
     async def host_decide(request: Request) -> Response:
         sess, bad = require(request, "host_console")
@@ -534,6 +576,7 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         Route("/api/utterance", utterance, methods=["POST"]),
         Route("/api/proposals/{proposal_id}/approve", approve, methods=["POST"]),
         Route("/api/proposals/{proposal_id}/decline", decline, methods=["POST"]),
+        Route("/api/issues/{issue_id}/answer", answer, methods=["POST"]),
         Route("/api/issues/{issue_id}/result", user_result, methods=["POST"]),
         Route("/api/stop", stop, methods=["POST"]),
         Route("/api/continue", cont, methods=["POST"]),

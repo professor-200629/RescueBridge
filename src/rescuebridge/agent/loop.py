@@ -77,6 +77,28 @@ def _compact(payload: Any, limit: int = 3500) -> str:
     return text if len(text) <= limit else text[:limit] + "...(truncated)"
 
 
+KIND_TITLE = {"MOUSE_BUTTONS": "Mouse buttons", "AUDIO_OUTPUT": "Sound", "OFFSCREEN_WINDOW": "Missing window",
+              "UNSUPPORTED": "That problem"}
+
+
+def short_issue_line(r: dict[str, Any]) -> str:
+    """One short spoken line per issue, used when a reply covers several issues (the cards hold the detail)."""
+    if "error" in r:
+        return describe_issue_result(r)
+    title = KIND_TITLE.get(str(r.get("kind")), "Issue")
+    state = r.get("state")
+    basis = r.get("supported_explanation") or ((r.get("observed_facts") or [""])[0])
+    if state == "PROPOSED":
+        return f"{title}: {basis} A change is ready for you to review and approve."
+    if state == "NEEDS_CLARIFICATION":
+        return str(r.get("question") or "")
+    if state == "UNRESOLVED":
+        return f"{title}: no supported cause found, nothing was changed. The next step is on screen."
+    if state == "UNSUPPORTED":
+        return f"{title} is not something I can repair. The next step is on screen."
+    return describe_issue_result(r)
+
+
 def describe_issue_result(r: dict[str, Any]) -> str:
     """Deterministic plain-language rendering of a server issue result (used by the rules strategy and as the
     fallback when a model produces no usable text)."""
@@ -188,6 +210,7 @@ class Agent:
         res = AgentResult(text="", provider="rules", model=None)
         it = interpret(text)
         said: list[str] = []
+        results: list[dict[str, Any]] = []
         budget = self.max_tool_calls
 
         async def call(name: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -216,7 +239,7 @@ class Agent:
             target = awaiting[-1]
             r = await call("record_user_result", {"issue_id": target["issue_id"], "result": "works" if it.yes else "still_broken",
                                                   "utterance_id": utterance_id})
-            said.append(describe_issue_result(r))
+            results.append(r)
 
         for issue in [i for i in open_issues if i["state"] == "NEEDS_CLARIFICATION"]:
             args: dict[str, Any] = {"issue_id": issue["issue_id"]}
@@ -232,10 +255,15 @@ class Agent:
                 args["volume_percent"] = max(5, min(50, it.volume_percent))
             if len(args) > 1:
                 r = await call("propose_recovery", args)
-                said.append(describe_issue_result(r))
+                results.append(r)
 
         existing = {i["category"] for i in open_issues}
         new_cats = [c for c in it.categories if c not in existing]
+        # the person reports an already-known symptom again: take FRESH observations (supported next check)
+        for issue in open_issues:
+            if issue["category"] in it.categories and issue["state"] in ("REPORTED", "UNRESOLVED", "FAILED"):
+                r = await call("inspect_recovery", {"issue_id": issue["issue_id"]})
+                results.append(r)
         if new_cats:
             symptoms = [{"category": c, "user_words": text[:200], **({"app_hint": it.app_hint} if c == "window_missing"
                                                                       and it.app_hint else {})} for c in new_cats]
@@ -243,10 +271,10 @@ class Agent:
             for iid in started.get("created_issue_ids", []):
                 issue = next((i for i in started.get("issues", []) if i["issue_id"] == iid), None)
                 if issue and issue["state"] == "UNSUPPORTED":
-                    said.append(describe_issue_result(issue))
+                    results.append(issue)
                     continue
                 r = await call("inspect_recovery", {"issue_id": iid})
-                said.append(describe_issue_result(r))
+                results.append(r)
 
         if it.undo:
             ops = [o for i in issues for o in i.get("operations", []) if o.get("undo_available")]
@@ -258,6 +286,18 @@ class Agent:
             else:
                 said.append("There is no completed repair that can be undone.")
 
+        if len(results) == 1:
+            said.append(describe_issue_result(results[0]))
+        elif results:
+            question = None
+            for r in results:
+                line = short_issue_line(r)
+                if r.get("state") == "NEEDS_CLARIFICATION":
+                    question = question or line
+                    continue
+                said.append(line)
+            if question:
+                said.append(question)
         if not said:
             if not it.categories and not (it.yes or it.no):
                 said.append("I can help with three things: mouse buttons that click wrong, no sound from the default "

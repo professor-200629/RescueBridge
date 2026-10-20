@@ -12,3 +12,5 @@ web/dist/
 *.pem
 .env
 evidence/raw/
+.smoke-data/
+evidence/tmp/

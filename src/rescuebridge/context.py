@@ -40,9 +40,11 @@ def build_context(settings: Settings, *, fixture_ops: Any = None, lab_armed: Any
     host_id = ensure_host(store)
     transport: Transport
     if settings.host_adapter == "fixture":
-        from rescuebridge.host.fixture_ops import FixtureOps
+        import os
 
-        fixture_ops = fixture_ops or FixtureOps()
+        from rescuebridge.host.fixture_ops import make_fixture
+
+        fixture_ops = fixture_ops or make_fixture(os.environ.get("RB_FIXTURE_SCENARIO", "healthy"))
         transport = InProcessTransport(HelperEngine(fixture_ops))
     else:
         transport = PipeTransport(settings.helper_pipe_name, settings.helper_key_path)

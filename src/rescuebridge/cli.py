@@ -12,11 +12,15 @@ from rescuebridge.config import load_settings
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="rescuebridge", description="RescueBridge second-channel recovery prototype")
+    p.add_argument("--data-dir", help="data directory (default %%LOCALAPPDATA%%\\RescueBridge or RB_DATA_DIR)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sp = sub.add_parser("serve", help="run the backend (browser app + MCP server)")
     sp.add_argument("--lan", action="store_true", help="also serve HTTPS on this laptop's LAN address for the phone")
     sp.add_argument("--fixture", action="store_true", help="use the in-process fixture adapter (no Windows changes)")
+    sp.add_argument("--fixture-scenario", default="healthy",
+                    help="fixture preset: healthy, muted, silent, swapped, left-handed, offscreen, two-offscreen, "
+                         "elevated-offscreen, interview")
     sp.add_argument("--provider", choices=["rules", "ollama"], help="language provider (default from RB_MODEL_PROVIDER)")
     sp.add_argument("--model", help="Ollama model name")
 
@@ -45,11 +49,18 @@ def main(argv: list[str] | None = None) -> int:
 
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    if args.data_dir:
+        import os
+
+        os.environ["RB_DATA_DIR"] = args.data_dir
 
     if args.cmd == "serve":
         overrides: dict[str, object] = {}
         if args.fixture:
+            import os
+
             overrides["host_adapter"] = "fixture"
+            os.environ["RB_FIXTURE_SCENARIO"] = args.fixture_scenario
         if args.provider:
             overrides["model_provider"] = args.provider
         if args.model:
