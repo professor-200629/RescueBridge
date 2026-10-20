@@ -1,0 +1,65 @@
+[project]
+name = "rescuebridge"
+version = "0.1.0"
+description = "Voice-first Windows recovery assistant prototype: a second interaction channel with exact approval and observed verification."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "mcp==2.3.0",
+    "starlette==1.9.0",
+    "uvicorn==0.54.0",
+    "httpx2==2.15.1",
+    "pydantic==2.14.1",
+    "anyio==4.15.1",
+    "segno==1.6.6",
+    "cryptography==50.0.2",
+    "pywin32==312; sys_platform == 'win32'",
+    "comtypes==1.4.17; sys_platform == 'win32'",
+    "pycaw==20260927; sys_platform == 'win32'",
+]
+
+[project.scripts]
+rescuebridge = "rescuebridge.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.17.1",
+    "mypy==2.4.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rescuebridge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "windows_readonly: reads real Windows state without mutating it",
+    "slow: slower end-to-end process tests",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC"]
+ignore = ["S101", "S311", "S603", "S607", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "src"
+packages = ["rescuebridge"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = false
