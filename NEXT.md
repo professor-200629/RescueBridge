@@ -35,6 +35,12 @@ the phone itself). Fixed with USB cable mode (`be3b822`): `start.ps1 -Usb` keeps
 `<data>\logs`. 79 tests pass. Owner's phone (Samsung SM-A366E, Android 16) has USB debugging authorized and
 adb at `C:\platform-tools-latest-windows\platform-tools` (on PATH).
 
+Then the owner scanned the QR code, paired, and spoke one problem on the phone (recognised imperfectly); Claude,
+at the owner's request, drove the phone's RescueBridge tab over adb-forwarded CDP through every fixture flow
+and fixed 7 defects (`aae0f76`, VALIDATION 5c/5d). 81 tests pass. Not done: real Windows from the phone (the
+session's permission policy blocked the real-mode host console), voice without the owner (the laptop voice did
+not reach the phone mic), any real Windows change (live lab never armed).
+
 ## Next actions (in order)
 
 1. Owner: run the live-lab rehearsal in `docs/LIVE_LAB.md` (audio + workpad first), then record results in

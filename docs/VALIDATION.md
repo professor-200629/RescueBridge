@@ -151,7 +151,7 @@ so nothing from the phone had reached RescueBridge.
 | `scripts\start.ps1 -Fixture -Scenario interview -Usb` | `USB link: linked (SM-A366E)`; `Phone-side check: OK - phone fetched http://127.0.0.1:8740/api/health -> HTTP 200` (the phone's own `curl` through `adb reverse`) |
 | Host console (Claude browser pane) | "Phone by USB cable: ● linked (SM-A366E)" |
 | Replug recovery: `usb-link --remove`, then wait with the host console open | mapping restored automatically after 10 s; phone-side `curl` again HTTP 200 |
-| Backend logs | `%LOCALAPPDATA%\RescueBridge\logsackend.out.log` shows the startup lines incl. `Phone by USB : linked`; `backend.err.log` empty |
+| Backend logs | `%LOCALAPPDATA%\RescueBridge\logs\backend.log` (self-written since `aae0f76`; was two redirected files) shows the startup lines incl. `Phone by USB : linked` |
 | `pytest` after the change | 79 passed (9 new in `test_usb.py`, scripted adb); ruff and mypy clean; web build OK |
 
 Adapter for this run: **Fixture Simulation** (no real Windows settings read or changed). What the owner then
@@ -163,14 +163,40 @@ Owner on the phone (session database, read-only, times IST):
 |---|---|
 | Scanned the pairing QR code with the phone; the page opened | pairing request created 13:56:59 from browser UA `Chrome/155.0.0.0 Mobile` (Chrome's reduced UA always says "Android 10; K"; the device reports Android 16) |
 | Accepted on the laptop host console | request decided 13:57:03, status CLAIMED; 1 device paired; device session active (last seen 13:57:33) |
-| Recovery conversation, approvals, voice | not yet: 0 messages, 0 missions at 13:57:39 |
+| Spoke the problem (Talk button, phone microphone, Chrome speech recognition) | 13:57:49 message with `input_mode=voice`, transcript verbatim: "my click sir not working I can't hear anything in my notes is appeared up to each pics on the phone". Recognised mouse + sound; the notes problem was **missed** (keyword interpreter did not know "is appeared") |
+| Approved the unmute on the phone, then tapped "Yes, it works" | 13:57:53 operation SET_AUDIO_ENDPOINT → APPLIED_STATE_VERIFIED (fixture); 13:57:55 person result `works` (ui_button), 2 s later, without playing the test tone |
+
+### 5d. Same phone driven by Claude (2026-10-21 14:00–14:20, owner asked for it; fixture mode)
+
+The owner asked Claude to test on the phone directly. Claude drove **only the RescueBridge tab** of the phone's
+Chrome through Chrome's remote-debugging socket (`adb forward tcp:9222 localabstract:chrome_devtools_remote`,
+Playwright `connect_over_cdp`); no screenshots of the phone were taken, other tabs were not read, and the
+forward was removed afterwards. These are real phone-browser runs, but **not a human using the phone**.
+
+| Flow on the phone | Result |
+|---|---|
+| Page facts | 384 CSS px wide, no horizontal scroll (scrollWidth = clientWidth), `isSecureContext` true over `http://127.0.0.1`, SpeechRecognition present, 92 speech voices; replies were spoken aloud (the "Stop speaking" button shows only while `speechSynthesis` is speaking) |
+| Mouse: Check again → question → Left → Approve → confirm | RIGHT → LEFT, APPLIED_STATE_VERIFIED, resolved by tap |
+| Window: typed "my notes is appeared" (the misheard phrase, after the interpreter fix) → Approve → typed "yes I can see it now" | Missing-window issue created; WorkPad 0 % → on screen, text fingerprint unchanged; resolved from the typed sentence (polarity-checked) |
+| Stop with a proposal pending → Continue | Stop CONFIRMED by the helper fence, proposal gone; after the fix Continue re-inspected and offered a fresh proposal |
+| Undo after a backend restart reset the simulated mouse | correctly **blocked** ("the setting changed after the repair") |
+| Undo of a fresh unmute | undo proposal → approved → muted again, issue "Not resolved" with next step; after the fix no test tone stays approvable |
+| Handoff summary | complete; after the fix operations are labelled repair/undo/test |
+| Voice input without the owner (laptop SAPI voice at 34 % volume → phone mic) | **not achieved**: recognition events `audiostart` → `nomatch` → `end` with no `soundstart` (the phone heard no sound). Environment limit; system volume was not changed. After the fix the phone says "I didn't catch any words…" instead of a blank status |
+| Real Windows read-only from the phone | **not run**: opening the real-mode host console was blocked by the session's permission policy; real-mode processes were stopped |
+
+Defects found and fixed in `aae0f76`: stale approvable test tone after "it works" and after Undo (now closed
+centrally when an issue leaves the repair flow); missed "is appeared"; Continue not re-inspecting; fixture
+prompts implying a real target/tone; blank status after a silent recognition; unlabelled handoff operations;
+`start.ps1` blocking callers that capture its output. Tests: 81 passed.
 
 ## 6. Not run (unverified)
 
 - **Real Windows changes** (mute/unmute, volume, mouse primary button, window move, test tone, click-test window):
   require the owner-armed live lab (`LIVE_LAB.md`). Zero live-lab sessions so far.
 - **Phone over Wi-Fi**: LAN HTTPS mode, certificate acceptance on Android. (USB transport: see 5c.)
-- **Phone microphone, speech recognition, speech synthesis**: not yet observed (see 5c for updates).
-- **Voice in any browser**: no microphone was used in testing; typed input only.
+- **Phone voice**: one real spoken utterance by the owner was recognised (imperfectly) and processed (5c);
+  speech synthesis ran on the phone (5d). Recognition accuracy across speakers/accents was not measured.
+- **Real Windows from the phone** (even read-only): not run (5d).
 - **Human participants: zero.** Protocol ready in `HUMAN_TRIAL_PROTOCOL.md`.
 - Multi-monitor mixed DPI; other Windows builds; another laptop.

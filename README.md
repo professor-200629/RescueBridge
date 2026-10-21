@@ -160,7 +160,7 @@ mouse/audio/window state without changing it.
 | Host console: "Phone by USB cable: not linked" | Follow the message: cable must carry data, USB debugging on, tap **Allow** on the phone, only one phone attached. `doctor` shows the adb state. |
 | Phone cannot open the LAN address | Same Wi-Fi? Guest network isolation? Windows network prompt answered "Private"? `doctor` shows the LAN address. |
 | Microphone button says unavailable | Needs a supported browser and https (LAN mode) or `127.0.0.1` (this laptop, or a phone in USB mode). Type instead. |
-| Something stopped working | Read `%LOCALAPPDATA%\RescueBridge\logsackend.err.log` and `helper.err.log` (overwritten at each start; no tokens or pairing codes). |
+| Something stopped working | Read `%LOCALAPPDATA%\RescueBridge\logs\backend.log` and `helper.log` (overwritten at each start; no tokens or pairing codes). |
 | `ollama` provider replies "couldn't interpret" | `ollama list` must show the model; first request after idle can take ~1 minute while the model loads. |
 | Lab still armed after a crash | `.venv\Scripts\python.exe -m rescuebridge.cli lab restore` (keyboard works even with swapped buttons). |
 
