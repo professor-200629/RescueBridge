@@ -81,3 +81,16 @@ SDK 2.3.0). Only tools actually used are listed.
   the QR code when no phone path is active, and backend logs to files (`be3b822`).
 - **Suggestion (for MCP/voice-device builders generally):** a second-device demo needs a documented local
   transport; "same Wi-Fi + self-signed HTTPS" fails often enough that a cable fallback is worth shipping.
+
+### 10. MCP Apps: the spec's example and the SDK types disagree on the `ui/initialize` field name
+
+- **Task (2026-10-21):** make `get_recovery_status` ship a status card as an MCP App (ui protocol 2026-01-26),
+  from Python, without the TypeScript `@modelcontextprotocol/ext-apps` SDK.
+- **Steps:** read `specification/2026-01-26/apps.mdx` and `src/spec.types.ts` in `modelcontextprotocol/ext-apps`.
+- **Expected:** one definition of the View's `ui/initialize` params. **Actual:** the prose and types say
+  `appInfo` + `appCapabilities`, while a raw JSON example in the spec sends `clientInfo`. We followed the types
+  (`appInfo`). The Python MCP SDK 2.3.0 has no MCP Apps helpers, so the tool `_meta.ui.resourceUri`, the
+  resource MIME type and the host-side postMessage bridge were written by hand.
+- **Severity:** Low–Medium (an ambiguity every non-TypeScript implementer must resolve alone).
+- **Suggestion:** align the spec example with the types; add Python helpers (a `ui_resource` decorator and a
+  reference host bridge) so Alexa+ builders can ship cards from Python servers.

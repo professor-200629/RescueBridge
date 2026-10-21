@@ -41,6 +41,16 @@ SESSION_COOKIE = "rb_session"
 PAIR_COOKIE = "rb_pair"
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
 
+# The MCP App view runs in a sandboxed, opaque-origin frame: inline code only, no network, no navigation.
+APP_FRAME_HEADERS = {
+    "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; "
+                               "connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; "
+                               "frame-ancestors 'self'; sandbox allow-scripts",
+    "x-frame-options": "SAMEORIGIN",
+}
+APP_TOOLS = {"get_recovery_status"}  # tools a card may call back through the host (read-only, visibility "app")
+APP_MIME = "text/html;profile=mcp-app"
+
 SECURITY_HEADERS = [
     (b"content-security-policy", b"default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
                                  b"connect-src 'self'; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
@@ -64,8 +74,11 @@ class SecurityHeaders:
 
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
-                message.setdefault("headers", [])
-                message["headers"] = list(message["headers"]) + SECURITY_HEADERS
+                headers = list(message.get("headers", []))
+                present = {k.lower() for k, _ in headers}
+                # A route may set a stricter policy of its own (the sandboxed MCP App frame does); never add a second
+                # CSP on top of it, because both would apply and `frame-ancestors 'none'` would block the frame.
+                message["headers"] = headers + [(k, v) for k, v in SECURITY_HEADERS if k not in present]
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
@@ -466,6 +479,35 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         reply = store_message(sess.device_id, "assistant", text)
         return JSONResponse({"reply": reply, **state_payload(sess)})
 
+    # ------------------------------------------------------------------ MCP Apps host (simulator)
+    async def app_frame(request: Request) -> Response:
+        """The ui:// view that get_recovery_status declares, fetched from the MCP server over MCP and served
+        unchanged into a sandboxed frame (the simulator acts as an MCP Apps host)."""
+        sess, bad = require(request, "device")
+        if bad:
+            return bad
+        assert sess
+        async with await with_mcp(sess) as mcp:
+            uri = await mcp.tool_ui_resource("get_recovery_status")
+            if uri is None:
+                return _err("NO_APP", "the tool declares no MCP App view", 404)
+            html, mime = await mcp.read_text_resource(uri)
+        if (mime or "").replace(" ", "") != APP_MIME:
+            return _err("NO_APP", "resource is not an MCP App view", 415)
+        return Response(html, media_type="text/html; charset=utf-8", headers=APP_FRAME_HEADERS)
+
+    async def app_tool_call(request: Request) -> Response:
+        """tools/call requested by the card, proxied over MCP; only read-only tools with app visibility."""
+        sess, bad = require(request, "device")
+        if bad:
+            return bad
+        assert sess
+        name = str((await body(request)).get("name", ""))
+        if name not in APP_TOOLS:
+            return _err("NOT_ALLOWED", "this view may only call get_recovery_status", 403)
+        async with await with_mcp(sess) as mcp:
+            return JSONResponse(await mcp.call_result(name, {}))
+
     async def undo(request: Request) -> Response:
         sess, bad = require(request, "device")
         if bad:
@@ -616,6 +658,8 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         Route("/api/stop", stop, methods=["POST"]),
         Route("/api/continue", cont, methods=["POST"]),
         Route("/api/operations/{operation_id}/undo", undo, methods=["POST"]),
+        Route("/mcp-app/recovery-card", app_frame),
+        Route("/api/mcp-app/tools-call", app_tool_call, methods=["POST"]),
         Route("/api/diagnostics", diagnostics),
         Route("/api/handoff", handoff),
         Route("/api/logout", logout, methods=["POST"]),

@@ -241,6 +241,21 @@ report, approve, before/after evidence, person confirmation, meter 1/3); `prefer
 animation; `prefers-contrast: more` switches to solid surfaces. **Not yet re-checked on the owner's phone**, and
 no screen-reader pass was done after the redesign.
 
+### 5h. MCP App card and shorter spoken replies (2026-10-21 evening)
+
+- `tests/test_mcp_app.py` (3): `get_recovery_status` declares `_meta.ui.resourceUri`; `resources/list` and
+  `resources/read` over real Streamable HTTP return the card with `text/html;profile=mcp-app`; unknown `ui://`
+  rejected; the card loads nothing external, never uses innerHTML/eval/fetch, and can only ask for
+  `get_recovery_status`; the simulator serves it with one sandboxing CSP (`sandbox allow-scripts`,
+  `frame-ancestors 'self'`, `connect-src 'none'`), requires a paired session, refuses `apply_recovery` and a
+  wrong CSRF token.
+- Edge end-to-end test: after the three repairs, the card renders inside its sandboxed iframe after the
+  `ui/initialize` handshake ("3/3 confirmed", "Fixture Simulation"), and its Refresh button round-trips
+  view → host → MCP `tools/call` → view. Passed.
+- Replies: one short headline per issue plus the first sentence of the exact proposal; the cards keep the full
+  text. Fixture evaluation unchanged (24/24, held-out 2/6, 0 incorrect changes, 0 false claims). 86 tests pass.
+- Not done: no third-party MCP Apps host (e.g. a desktop AI client) was used to render the card.
+
 ## 6. Not run (unverified)
 
 - **Real Windows changes**: unmute and the test tone (5e) and a WorkPad window move under the live lab (5f)

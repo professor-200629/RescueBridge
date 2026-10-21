@@ -13,12 +13,14 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import mcp.types as types
 from mcp.server import Server
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.shared.exceptions import MCPError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.applications import Starlette
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -28,6 +30,12 @@ from rescuebridge.domain.enums import UserResultSource
 from rescuebridge.domain.service import DomainError, Principal, RecoveryService
 
 log = logging.getLogger("rescuebridge.mcp")
+
+# MCP Apps (SEP-1865, ui protocol 2026-01-26): get_recovery_status declares this read-only status card. Hosts that
+# support MCP Apps render it in a sandboxed iframe and feed it the tool result; other hosts use the JSON result.
+CARD_URI = "ui://rescuebridge/recovery-card"
+APP_MIME = "text/html;profile=mcp-app"
+CARD_HTML = (Path(__file__).with_name("recovery_card.html")).read_text(encoding="utf-8")
 
 SERVER_INSTRUCTIONS = """RescueBridge recovers access to an existing Windows session through a second channel.
 Supported: (A) mouse button mapping vs the person's preference, (B) muted/silent default playback device,
@@ -102,6 +110,7 @@ class ToolSpec:
     handler: Callable[[RecoveryService, Principal, Any], Awaitable[dict[str, Any]]]
     read_only: bool = False
     destructive: bool = False
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 async def _start(svc: RecoveryService, p: Principal, a: StartArgs) -> dict[str, Any]:
@@ -171,8 +180,9 @@ TOOLS: dict[str, ToolSpec] = {t.name: t for t in [
              "while the issue awaits confirmation; contradictory wording is rejected.",
              UserResultArgs, _user_result),
     ToolSpec("get_recovery_status", "Get recovery status",
-             "Current server-side status of every issue, open proposals, operations and the person's results.",
-             NoArgs, _status, read_only=True),
+             "Current server-side status of every issue, open proposals, operations and the person's results. "
+             "MCP Apps hosts can show it as a read-only status card.",
+             NoArgs, _status, read_only=True, meta={"ui": {"resourceUri": CARD_URI, "visibility": ["model", "app"]}}),
     ToolSpec("stop_recovery", "Stop",
              "Revoke all pending permission and stop further changes immediately.",
              StopArgs, _stop),
@@ -191,8 +201,16 @@ def _tool_defs() -> list[types.Tool]:
         out.append(types.Tool(name=t.name, title=t.title, description=t.description, input_schema=schema,
                               annotations=types.ToolAnnotations(read_only_hint=t.read_only, destructive_hint=t.destructive,
                                                                 idempotent_hint=t.name == "apply_recovery",
-                                                                open_world_hint=False)))
+                                                                open_world_hint=False),
+                              _meta=t.meta or None))
     return out
+
+
+def _card_resource() -> types.Resource:
+    return types.Resource(uri=CARD_URI, name="recovery-card", title="RescueBridge recovery status card",
+                          description="Read-only MCP App view of get_recovery_status (no approve control: approval "
+                                      "exists only on the paired phone).",
+                          mime_type=APP_MIME, _meta={"ui": {"prefersBorder": False}})
 
 
 def _result(payload: dict[str, Any], is_error: bool = False) -> types.CallToolResult:
@@ -224,8 +242,18 @@ def build_mcp_server(service: RecoveryService) -> Server[Any]:
         except DomainError as exc:
             return _result({"error": exc.as_dict()}, True)
 
+    async def list_resources(ctx: Any, params: Any) -> types.ListResourcesResult:
+        return types.ListResourcesResult(resources=[_card_resource()])
+
+    async def read_resource(ctx: Any, params: types.ReadResourceRequestParams) -> types.ReadResourceResult:
+        if str(params.uri) != CARD_URI:
+            raise MCPError(types.INVALID_PARAMS, "unknown resource")
+        return types.ReadResourceResult(contents=[types.TextResourceContents(
+            uri=CARD_URI, mime_type=APP_MIME, text=CARD_HTML, _meta={"ui": {"prefersBorder": False}})])
+
     return Server("rescuebridge", version="0.1.0", title="RescueBridge recovery tools", instructions=SERVER_INSTRUCTIONS,
-                  on_list_tools=list_tools, on_call_tool=call_tool)
+                  on_list_tools=list_tools, on_call_tool=call_tool, on_list_resources=list_resources,
+                  on_read_resource=read_resource)
 
 
 class McpBearerAuth:

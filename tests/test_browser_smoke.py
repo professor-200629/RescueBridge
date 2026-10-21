@@ -73,6 +73,15 @@ async def test_browser_combined_recovery_flow(tmp_path):
         await card("Mouse buttons").get_by_role("button", name="Yes, it works").click()
         await phone.get_by_text("All 3 reported issue(s) confirmed resolved by the person.").wait_for()
 
+        # --- MCP App: the server-declared card renders in its sandboxed frame after the ui/initialize handshake
+        await phone.locator("details.appcard summary").click()
+        card_frame = phone.frame_locator("iframe.app-frame")
+        await card_frame.get_by_text("3/3 confirmed").wait_for()
+        await card_frame.get_by_text("Fixture Simulation").wait_for()
+        await card_frame.get_by_role("button", name="Refresh").click()  # view -> host tools/call -> MCP
+        await card_frame.get_by_text("All 3 reported issue(s) confirmed resolved by the person.").wait_for()
+        assert await phone.locator("iframe.app-frame").get_attribute("sandbox") == "allow-scripts"
+
         # --- Stop is direct and acknowledged by the helper fence
         await phone.get_by_role("button", name="STOP all changes").click()
         await phone.get_by_text("Stopped — the laptop helper confirmed").first.wait_for()

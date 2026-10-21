@@ -2,6 +2,7 @@
 import { api, ApiError, setCsrf } from "./api";
 import { fmtTime, h, preserveFocus, replace, secondsLeft } from "./dom";
 import { icon } from "./icons";
+import { AppCardHost } from "./mcpapp";
 import { Voice } from "./voice";
 
 export interface Session {
@@ -170,6 +171,7 @@ export class RecoveryApp {
   private voiceText = "";
   private lastSpokenId = "";
   private voice: Voice;
+  private cardHost: AppCardHost | null = null;
   private els!: {
     status: HTMLElement; hero: HTMLElement; caption: HTMLElement; convo: HTMLElement; issues: HTMLElement;
     actions: HTMLElement; mic: HTMLButtonElement; micLabel: HTMLElement; micState: HTMLElement;
@@ -251,6 +253,17 @@ export class RecoveryApp {
       h("summary", null, "Diagnostics (for developers)"), diagBody);
     const stopStatus = h("span", { class: "stop-status", role: "status", "aria-live": "assertive" });
     const stopBtn = h("button", { class: "stop", type: "button", onclick: () => void this.stop() }, icon("stop"), "STOP all changes");
+    const appSlot = h("div", { class: "app-slot" });
+    const appCard = h("details", { class: "card appcard", ontoggle: () => {
+      if (appCard.open && !this.cardHost) {
+        this.cardHost = new AppCardHost();
+        appSlot.append(this.cardHost.el);
+      }
+    } },
+      h("summary", null, icon("spark", "ico inline"), " Alexa+ card view ", h("span", { class: "badge s-proposed" }, "MCP App")),
+      h("p", { class: "hint" }, "Not drawn by this page: the MCP server ships this card as an MCP App (ui://rescuebridge/recovery-card) "
+        + "attached to get_recovery_status, so any MCP Apps host can show it. Read-only: approvals stay on this phone."),
+      appSlot);
     const intro = h("details", { class: "card intro", open: true },
       h("summary", null, "What this can do"),
       h("div", { class: "tiles" },
@@ -260,7 +273,7 @@ export class RecoveryApp {
       h("p", { class: "hint" }, icon("shield", "ico inline"), " Nothing changes on the laptop unless you tap Approve. Anything else is reported as unsupported. "
         + "Your laptop must be on, unlocked, and running RescueBridge."));
     replace(this.root, header(this.session, status),
-      h("main", { id: "main" }, hero, issues, intro, convo, actions, diag),
+      h("main", { id: "main" }, hero, issues, appCard, intro, convo, actions, diag),
       h("footer", { class: "stop-bar" }, stopBtn, stopStatus));
     this.els = { status, hero, caption, convo, issues, actions, mic, micLabel, micState, input, send, stopSpeak, stopBtn,
       stopStatus, diag, diagBody, working };
@@ -366,6 +379,7 @@ export class RecoveryApp {
         h("div", { class: "meter", role: "progressbar", "aria-label": "Issues confirmed resolved", "aria-valuemin": "0",
           "aria-valuemax": String(issues.length), "aria-valuenow": String(resolved) }, bar)) : null,
       issues.map((i) => this.issueCard(i)));
+    void this.cardHost?.push(); // keep the MCP App card in step with the server
     // actions
     const stopped = st?.mission?.state === "STOPPED";
     replace(this.els.actions,

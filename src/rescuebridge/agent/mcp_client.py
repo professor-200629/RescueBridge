@@ -50,6 +50,31 @@ class McpToolClient:
         res = await self._client.list_tools()
         return [{"name": t.name, "description": t.description or "", "input_schema": t.input_schema} for t in res.tools]
 
+    async def tool_ui_resource(self, name: str) -> str | None:
+        """MCP Apps: the ui:// resource a tool declares in `_meta.ui.resourceUri` (None if it declares none)."""
+        assert self._client is not None
+        for t in (await self._client.list_tools()).tools:
+            if t.name == name:
+                ui = (t.meta or {}).get("ui") or {}
+                uri = ui.get("resourceUri") if isinstance(ui, dict) else None
+                return uri if isinstance(uri, str) and uri.startswith("ui://") else None
+        return None
+
+    async def read_text_resource(self, uri: str) -> tuple[str, str | None]:
+        assert self._client is not None
+        res = await self._client.read_resource(uri)
+        for c in res.contents:
+            if getattr(c, "text", None) is not None:
+                return c.text, c.mime_type  # type: ignore[union-attr]
+        raise ValueError(f"resource {uri} has no text content")
+
+    async def call_result(self, name: str, arguments: dict[str, Any] | None) -> dict[str, Any]:
+        """The raw CallToolResult as JSON (camelCase), for handing to an MCP App view."""
+        assert self._client is not None
+        res = await self._client.call_tool(name, arguments or {})
+        self.calls.append({"tool": name, "arguments": arguments, "is_error": bool(res.is_error), "ms": None})
+        return res.model_dump(by_alias=True, exclude_none=True, mode="json")
+
     async def call(self, name: str, arguments: dict[str, Any] | None) -> tuple[dict[str, Any], bool]:
         assert self._client is not None
         t0 = time.perf_counter()

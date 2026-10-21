@@ -335,6 +335,11 @@ button.option:hover { border-color: var(--violet); box-shadow: 0 0 0 4px rgba(16
   background: rgba(96, 165, 250, 0.08); border: 1px solid rgba(96, 165, 250, 0.3); font-size: 0.92rem;
 }
 
+/* MCP App card (server-provided view in a sandboxed frame) */
+.appcard summary { cursor: pointer; font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.appcard .hint { margin: 10px 0; }
+.app-frame { display: block; width: 100%; height: 220px; border: 0; border-radius: 18px; background: transparent; color-scheme: dark; }
+
 /* ---------------------------------------------------------------------------------------------- conversation */
 .msgs { list-style: none; margin: 0; padding: 2px 2px 0; display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto; }
 .msg {

@@ -84,19 +84,53 @@ KIND_TITLE = {"MOUSE_BUTTONS": "Mouse buttons", "AUDIO_OUTPUT": "Sound", "OFFSCR
               "UNSUPPORTED": "That problem"}
 
 
+MOUSE_QUESTION = "which button should do normal clicks: left, the usual one, or right, for left-handed use?"
+
+
+def _proposal_text(r: dict[str, Any]) -> str:
+    props = r.get("open_proposals") or ([r["new_proposal"]] if r.get("new_proposal") else [])
+    return str(props[-1].get("description") or "") if props else ""
+
+
+def _first_sentence(text: str) -> str:
+    text = text.strip()
+    cut = text.find(". ")
+    return text if cut < 0 else text[:cut + 1]
+
+
+def headline(r: dict[str, Any]) -> str:
+    """A short spoken cause for one issue, derived only from what the server observed (no new claims)."""
+    kind = str(r.get("kind"))
+    facts = " ".join(str(f) for f in r.get("observed_facts") or [])
+    if kind == "AUDIO_OUTPUT":
+        if "MUTED" in facts:
+            return "Your speaker is muted."
+        if re.search(r"volume [0-4]%", facts):
+            return "Your speaker volume is almost zero."
+    if kind == "MOUSE_BUTTONS" and "swapped" in facts:
+        return "Your mouse buttons are swapped right now."
+    if kind == "OFFSCREEN_WINDOW":
+        m = re.search(r"'([^']+)'", _proposal_text(r) or str(r.get("supported_explanation") or ""))
+        if m and r.get("state") in ("PROPOSED", "NEEDS_CLARIFICATION"):
+            return f"'{m.group(1)}' is off-screen."
+    return _first_sentence(str(r.get("supported_explanation") or (r.get("observed_facts") or [""])[0]))
+
+
 def short_issue_line(r: dict[str, Any]) -> str:
     """One short spoken line per issue, used when a reply covers several issues (the cards hold the detail)."""
     if "error" in r:
         return describe_issue_result(r)
     title = KIND_TITLE.get(str(r.get("kind")), "Issue")
     state = r.get("state")
-    basis = r.get("supported_explanation") or ((r.get("observed_facts") or [""])[0])
     if state == "PROPOSED":
-        return f"{title}: {basis} A change is ready for you to review and approve."
+        head = headline(r)
+        return f"{title}: {head[0].lower() + head[1:] if head.startswith('Your') else head}"
     if state == "NEEDS_CLARIFICATION":
+        if r.get("kind") == "MOUSE_BUTTONS":
+            return f"For the mouse, {MOUSE_QUESTION}"
         return str(r.get("question") or "")
     if state == "UNRESOLVED":
-        return f"{title}: no supported cause found, nothing was changed. The next step is on screen."
+        return f"{title}: I found no supported cause, so I changed nothing."
     if state == "UNSUPPORTED":
         return f"{title} is not something I can repair. The next step is on screen."
     return describe_issue_result(r)
@@ -104,20 +138,21 @@ def short_issue_line(r: dict[str, Any]) -> str:
 
 def describe_issue_result(r: dict[str, Any]) -> str:
     """Deterministic plain-language rendering of a server issue result (used by the rules strategy and as the
-    fallback when a model produces no usable text)."""
+    fallback when a model produces no usable text). Short and spoken; the cards on screen hold the full text."""
     if "error" in r:
         return f"I couldn't do that: {r['error'].get('message', 'request rejected')}."
     state = r.get("state")
-    facts = r.get("observed_facts") or []
-    first = facts[0] if facts else ""
     if state == "PROPOSED":
-        props = r.get("open_proposals") or ([r["new_proposal"]] if r.get("new_proposal") else [])
-        desc = props[-1]["description"] if props else "a change"
-        return f"{first} I've prepared this change: {desc} Check it and tap Approve on your phone if it's right."
+        change = _first_sentence(_proposal_text(r)) or "a change"
+        return f"{headline(r)} I can fix it: {change} Tap Approve if that's right."
     if state == "NEEDS_CLARIFICATION":
-        return f"{first} {r.get('question') or ''}".strip()
+        if r.get("kind") == "MOUSE_BUTTONS":
+            return f"{headline(r)} {MOUSE_QUESTION[0].upper()}{MOUSE_QUESTION[1:]}"
+        facts = r.get("observed_facts") or []
+        return f"{facts[0] if facts else ''} {r.get('question') or ''}".strip()
     if state == "UNRESOLVED":
-        return f"{first} {r.get('next_manual_step') or ''}".strip()
+        facts = r.get("observed_facts") or []
+        return str(r.get("next_manual_step") or (facts[0] if facts else "Nothing was changed."))
     if state == "UNSUPPORTED":
         return r.get("next_manual_step") or "That isn't something I can repair."
     if state == "RESOLVED":
@@ -336,6 +371,7 @@ class Agent:
         if len(results) == 1:
             said.append(describe_issue_result(results[0]))
         elif results:
+            said.append("I checked your laptop.")
             question = None
             for r in results:
                 line = short_issue_line(r)
@@ -343,6 +379,8 @@ class Agent:
                     question = question or line
                     continue
                 said.append(line)
+            if any(r.get("state") == "PROPOSED" for r in results):
+                said.append("Review each fix below and tap Approve.")
             if question:
                 said.append(question)
         if not said:

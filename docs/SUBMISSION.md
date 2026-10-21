@@ -63,6 +63,10 @@ RescueBridge's MCP server; any MCP host with a device-bound bearer token can cal
 - Independent Alexa+ concept simulator: voice-first phone UI with captions, single focused questions, explicit
   approval and Stop. It is not an Alexa product.
 - Maintains state across sessions and transport reconnects (device-bound missions in SQLite).
+- **MCP Apps / cards:** `get_recovery_status` ships a read-only recovery card as an MCP App
+  (`ui://rescuebridge/recovery-card`, `text/html;profile=mcp-app`, ui protocol 2026-01-26). The simulator hosts it
+  in a sandboxed frame after the `ui/initialize` handshake; an Edge end-to-end test checks it renders the live
+  status and refreshes through `tools/call`. Approval deliberately stays on the paired phone, not in the card.
 
 ## Pending before submission
 

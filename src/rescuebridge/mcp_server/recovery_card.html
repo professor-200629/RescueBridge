@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RescueBridge recovery status</title>
+<!-- MCP App view (MIME text/html;profile=mcp-app, protocol 2026-01-26). Self-contained: no network, no external
+     resources. Read-only by design: it shows the server's recovery status; approval exists only on the paired
+     phone, so this card has no approve control. All server data is rendered with textContent. -->
+<style>
+  :root {
+    --bg: #0b1224; --fg: #eef3ff; --muted: #a8b4cc; --line: rgba(148,170,220,.22); --chip: rgba(255,255,255,.05);
+    --cyan: #22d3ee; --violet: #a78bfa; --green: #34d399; --amber: #fbbf24; --red: #f87171; --blue: #60a5fa;
+    --grad: linear-gradient(135deg,#22d3ee,#818cf8 55%,#c084fc); --ok: linear-gradient(135deg,#34d399,#22d3ee);
+    color-scheme: dark;
+  }
+  :root.light {
+    --bg: #f7f9fe; --fg: #0f172a; --muted: #475569; --line: rgba(15,23,42,.14); --chip: rgba(15,23,42,.04);
+    --cyan: #0e7490; --violet: #6d28d9; --green: #047857; --amber: #b45309; --red: #b91c1c; --blue: #1d4ed8;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; }
+  body { font: 15px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; color: var(--fg); }
+  .card { background: var(--bg); border: 1px solid var(--line); border-radius: 18px; padding: 14px 14px 10px; overflow: hidden; position: relative; }
+  .card::before { content: ""; position: absolute; inset: -60px -40px auto; height: 140px; pointer-events: none;
+    background: radial-gradient(closest-side, rgba(34,211,238,.18), transparent); }
+  .top { display: flex; align-items: center; gap: 10px; position: relative; }
+  .logo { width: 30px; height: 30px; border-radius: 9px; background: var(--grad); display: grid; place-items: center; flex: none; }
+  .logo svg { width: 18px; height: 18px; stroke: #04111a; }
+  .title { font-weight: 750; font-size: 15px; }
+  .sub { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .count { margin-left: auto; font-weight: 800; color: var(--green); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .meter { height: 6px; border-radius: 9px; background: var(--chip); margin: 10px 0 4px; overflow: hidden; }
+  .meter > span { display: block; height: 100%; background: var(--ok); border-radius: inherit; transition: width .6s ease; }
+  .summary { font-size: 12.5px; color: var(--muted); margin: 4px 0 8px; }
+  ul.issues { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .issue { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--chip); border-left: 3px solid var(--c, var(--blue)); }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row svg { width: 18px; height: 18px; stroke: var(--c, var(--blue)); flex: none; }
+  .name { font-weight: 700; flex: 1; }
+  .pill { font-size: 11px; font-weight: 750; padding: 2px 9px; border-radius: 999px; color: var(--c, var(--blue));
+    border: 1px solid var(--c, var(--blue)); white-space: nowrap; }
+  .dots { display: flex; gap: 5px; margin: 8px 0 6px; }
+  .dots i { width: 22px; height: 4px; border-radius: 4px; background: var(--line); }
+  .dots i.on { background: var(--ok); }
+  .dots i.now { background: var(--c, var(--cyan)); }
+  .line { font-size: 13px; color: var(--muted); }
+  .line b { color: var(--fg); font-weight: 650; }
+  .s-resolved { --c: var(--green); } .s-proposed { --c: var(--cyan); } .s-needs_clarification { --c: var(--violet); }
+  .s-awaiting_user_confirmation { --c: var(--amber); } .s-failed, .s-stopped { --c: var(--red); }
+  .s-unresolved, .s-unsupported { --c: var(--muted); }
+  .foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 11.5px; color: var(--muted); }
+  .foot span { flex: 1; }
+  button { font: inherit; font-size: 12.5px; color: var(--fg); background: var(--chip); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 12px; min-height: 32px; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #fde047; outline-offset: 2px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="top">
+    <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 16c2.5-5.5 15.5-5.5 18 0M3 16h18M8 8h2l1.5-3 2 6 1.5-3h1"/></svg></span>
+    <div><div class="title">RescueBridge</div><div class="sub" id="mode">recovery status</div></div>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="meter" role="progressbar" aria-label="Issues confirmed resolved" id="meter"><span id="bar" style="width:0%"></span></div>
+  <p class="summary" id="summary" aria-live="polite">Waiting for the recovery status…</p>
+  <ul class="issues" id="issues"></ul>
+  <div class="foot"><span>Changes need your approval on the paired phone. This card is read-only.</span>
+    <button type="button" id="refresh">Refresh</button></div>
+</div>
+<script>
+(() => {
+  "use strict";
+  const PROTOCOL = "2026-01-26";
+  const TITLES = { MOUSE_BUTTONS: "Mouse buttons", AUDIO_OUTPUT: "Sound", OFFSCREEN_WINDOW: "Missing window", UNSUPPORTED: "Not supported" };
+  const STATES = { REPORTED: "Reported", INSPECTING: "Checking", NEEDS_CLARIFICATION: "Question", PROPOSED: "Needs approval",
+    APPROVED: "Approved", APPLYING: "Applying", VERIFYING: "Verifying", AWAITING_USER_CONFIRMATION: "Your check",
+    RESOLVED: "Resolved", UNRESOLVED: "Not resolved", FAILED: "Failed", STOPPED: "Stopped", UNSUPPORTED: "Unsupported" };
+  const ICONS = { MOUSE_BUTTONS: ["M12 3a6 6 0 0 0-6 6v6a6 6 0 0 0 12 0V9a6 6 0 0 0-6-6z", "M12 3v7", "M6 10h12"],
+    AUDIO_OUTPUT: ["M11 5 6 9H3v6h3l5 4V5z", "M15.5 8.5a5 5 0 0 1 0 7", "M18.5 5.5a9 9 0 0 1 0 13"],
+    OFFSCREEN_WINDOW: ["M3 5h18v14H3z", "M3 9h18"], UNSUPPORTED: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M12 16.5h.01"] };
+  const NS = "http://www.w3.org/2000/svg";
+  let nextId = 1;
+  const pending = new Map();
+  const post = (msg) => window.parent.postMessage(msg, "*");
+  const request = (method, params) => new Promise((resolve, reject) => {
+    const id = nextId++;
+    pending.set(id, { resolve, reject });
+    post({ jsonrpc: "2.0", id, method, params });
+    setTimeout(() => { if (pending.delete(id)) reject(new Error("timeout")); }, 15000);
+  });
+  const notify = (method, params) => post({ jsonrpc: "2.0", method, params: params || {} });
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  function icon(kind) {
+    const s = document.createElementNS(NS, "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke-width", "1.8");
+    s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true");
+    for (const d of ICONS[kind] || ICONS.UNSUPPORTED) { const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); s.append(p); }
+    return s;
+  }
+  function steps(i) {
+    switch (i.state) {
+      case "REPORTED": case "INSPECTING": return [1, 1];
+      case "NEEDS_CLARIFICATION": case "PROPOSED": return [2, 2];
+      case "APPROVED": case "APPLYING": case "VERIFYING": return [3, 3];
+      case "AWAITING_USER_CONFIRMATION": return [4, 4];
+      case "RESOLVED": return [5, -1];
+      default: return [(i.operations || []).length ? 4 : 2, -1];
+    }
+  }
+  function lineFor(i) {
+    const p = (i.open_proposals || []).find((x) => x.status === "PENDING");
+    if (p) return ["Approve on your phone: ", p.description];
+    if (i.state === "NEEDS_CLARIFICATION" && i.question) return ["Question: ", i.question];
+    if (i.state === "AWAITING_USER_CONFIRMATION") return ["Check it yourself: ", (i.confirmation && i.confirmation.question) || "does it work now?"];
+    if (i.next_manual_step) return ["Next step: ", i.next_manual_step];
+    const ops = i.operations || [];
+    if (ops.length && ops[ops.length - 1].observed_after) return ["Observed after the change: ", ops[ops.length - 1].observed_after];
+    if ((i.observed_facts || []).length) return ["Observed: ", i.observed_facts[0]];
+    return ["", "Waiting for inspection."];
+  }
+  function clip(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+  function render(result) {
+    let data = result && result.structuredContent;
+    if (!data && result && Array.isArray(result.content)) {
+      try { data = JSON.parse(result.content.map((c) => c.text || "").join("")); } catch (e) { data = null; }
+    }
+    const list = document.getElementById("issues");
+    list.replaceChildren();
+    if (!data || data.error) {
+      document.getElementById("summary").textContent = data && data.error ? "Status unavailable: " + clip(data.error.message, 120) : "No status received.";
+      return;
+    }
+    document.getElementById("mode").textContent = (data.adapter || "unknown adapter");
+    const issues = data.issues || [];
+    const done = issues.filter((i) => i.state === "RESOLVED").length;
+    document.getElementById("count").textContent = issues.length ? done + "/" + issues.length + " confirmed" : "";
+    document.getElementById("bar").style.width = issues.length ? Math.round(100 * done / issues.length) + "%" : "0%";
+    const meter = document.getElementById("meter");
+    meter.setAttribute("aria-valuemin", "0"); meter.setAttribute("aria-valuemax", String(issues.length)); meter.setAttribute("aria-valuenow", String(done));
+    document.getElementById("summary").textContent = data.mission ? data.mission.server_summary + (data.mission.state === "STOPPED" ? " Stopped." : "") : "No recovery session yet.";
+    if (!issues.length) { list.append(el("li", "empty", "Nothing reported yet. Tell RescueBridge what is wrong.")); }
+    for (const i of issues) {
+      const li = el("li", "issue s-" + String(i.state).toLowerCase());
+      const row = el("div", "row");
+      row.append(icon(i.kind), el("span", "name", TITLES[i.kind] || i.category), el("span", "pill", STATES[i.state] || i.state));
+      const [n, now] = steps(i);
+      const dots = el("div", "dots");
+      dots.setAttribute("aria-label", "Progress " + n + " of 5");
+      for (let k = 0; k < 5; k++) dots.append(el("i", k < n ? "on" : (k === now ? "now" : "")));
+      const [label, text] = lineFor(i);
+      const line = el("div", "line");
+      if (label) line.append(el("b", null, label));
+      line.append(document.createTextNode(clip(text, 180)));
+      li.append(row, dots, line);
+      list.append(li);
+    }
+  }
+  function applyContext(ctx) {
+    if (ctx && ctx.theme) document.documentElement.classList.toggle("light", ctx.theme === "light");
+  }
+
+  window.addEventListener("message", (ev) => {
+    if (ev.source !== window.parent) return;
+    const m = ev.data;
+    if (!m || m.jsonrpc !== "2.0") return;
+    if (m.id !== undefined && !m.method) {
+      const p = pending.get(m.id);
+      if (p) { pending.delete(m.id); m.error ? p.reject(new Error(m.error.message || "error")) : p.resolve(m.result); }
+      return;
+    }
+    if (m.method === "ui/notifications/tool-result") render(m.params);
+    else if (m.method === "ui/notifications/host-context-changed") applyContext(m.params);
+    else if (m.method === "ui/resource-teardown" && m.id !== undefined) post({ jsonrpc: "2.0", id: m.id, result: {} });
+  });
+
+  document.getElementById("refresh").addEventListener("click", async () => {
+    try { render(await request("tools/call", { name: "get_recovery_status", arguments: {} })); }
+    catch (e) { document.getElementById("summary").textContent = "Refresh failed: " + clip(e.message, 80); }
+  });
+
+  let lastH = 0;
+  const reportSize = () => {
+    const h = Math.ceil(document.getElementById("card").getBoundingClientRect().height) + 2;
+    if (h !== lastH) { lastH = h; notify("ui/notifications/size-changed", { height: h }); }
+  };
+  if ("ResizeObserver" in window) new ResizeObserver(reportSize).observe(document.getElementById("card"));
+
+  request("ui/initialize", { protocolVersion: PROTOCOL, appInfo: { name: "rescuebridge-recovery-card", version: "0.1.0" },
+    appCapabilities: { availableDisplayModes: ["inline"] } })
+    .then((r) => applyContext(r && r.hostContext))
+    .catch(() => {})
+    .finally(() => { notify("ui/notifications/initialized", {}); reportSize(); });
+})();
+</script>
+</body>
+</html>

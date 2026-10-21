@@ -136,6 +136,11 @@ changed"); it never switches provider silently.
 - Tools: `start_recovery`, `inspect_recovery`, `propose_recovery`, `apply_recovery`, `verify_recovery`,
   `record_user_result`, `get_recovery_status`, `stop_recovery`, `undo_recovery`. **There is no approve
   tool**: approval exists only on the paired device's screen.
+- **MCP App (ui protocol 2026-01-26):** `get_recovery_status` declares `_meta.ui.resourceUri =
+  ui://rescuebridge/recovery-card`, a self-contained, read-only status card (`text/html;profile=mcp-app`, no
+  network, no approve control). MCP Apps hosts render it in a sandboxed iframe and feed it the tool result; the
+  card's Refresh button asks the host to call `get_recovery_status` again. The phone simulator is itself a
+  minimal MCP Apps host: open **Alexa+ card view** on the recovery screen.
 
 ## Testing
 

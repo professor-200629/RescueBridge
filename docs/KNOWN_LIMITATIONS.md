@@ -24,6 +24,10 @@ code inspection.
 
 ## Unverified (code exists, not yet run for real)
 
+- **MCP App card in other hosts:** verified only in RescueBridge's own simulator host (a single sandboxed
+  iframe, a simplification of the spec's separate-origin sandbox proxy). Not yet opened in a third-party MCP
+  Apps host; the MCP endpoint is loopback-only and needs a device token (`rescuebridge.cli mcp-token`).
+
 - Real Windows **changes** not yet run: `SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)`, Core Audio
   `SetMasterVolumeLevelScalar`, the click-test window, real Undo. (Ran once each on real Windows: Core Audio
   `SetMute` and the `winsound.PlaySound` tone, approved by the owner on the phone, `VALIDATION.md` 5e; and

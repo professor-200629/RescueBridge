@@ -147,3 +147,19 @@ def test_keyword_interpreter_tolerates_real_phone_speech_recognition():
     for text in ("my notes dissapeared", "the notes window is not visible", "my notes this appeared"):
         assert "window_missing" in interpret(text).categories, text
     assert "window_missing" not in interpret("a new notification appeared").categories
+
+
+def test_spoken_replies_are_short_and_keep_the_exact_change():
+    from rescuebridge.agent.loop import describe_issue_result, short_issue_line
+
+    r = {"kind": "AUDIO_OUTPUT", "state": "PROPOSED",
+         "observed_facts": ["Default playback device 'Speakers' is MUTED, volume 24%."],
+         "open_proposals": [{"description": "Unmute 'Speakers' and leave its volume at 24%. Only this device is "
+                                            "changed. Undo is available."}]}
+    assert describe_issue_result(r) == ("Your speaker is muted. I can fix it: Unmute 'Speakers' and leave its volume "
+                                        "at 24%. Tap Approve if that's right.")
+    assert short_issue_line(r) == "Sound: your speaker is muted."
+    unresolved = {"kind": "AUDIO_OUTPUT", "state": "UNRESOLVED", "observed_facts": ["Default ... unmuted, volume 34%."],
+                  "next_manual_step": "Check the headphones."}
+    assert describe_issue_result(unresolved) == "Check the headphones."
+    assert "fixed" not in describe_issue_result(r).lower()  # a proposal is never described as a fix that happened
