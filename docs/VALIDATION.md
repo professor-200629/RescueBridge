@@ -157,6 +157,14 @@ so nothing from the phone had reached RescueBridge.
 Adapter for this run: **Fixture Simulation** (no real Windows settings read or changed). What the owner then
 did on the phone (pairing, typing or voice, approvals) is recorded below only from the session database.
 
+Owner on the phone (session database, read-only, times IST):
+
+| Step | Evidence |
+|---|---|
+| Scanned the pairing QR code with the phone; the page opened | pairing request created 13:56:59 from browser UA `Chrome/155.0.0.0 Mobile` (Chrome's reduced UA always says "Android 10; K"; the device reports Android 16) |
+| Accepted on the laptop host console | request decided 13:57:03, status CLAIMED; 1 device paired; device session active (last seen 13:57:33) |
+| Recovery conversation, approvals, voice | not yet: 0 messages, 0 missions at 13:57:39 |
+
 ## 6. Not run (unverified)
 
 - **Real Windows changes** (mute/unmute, volume, mouse primary button, window move, test tone, click-test window):
