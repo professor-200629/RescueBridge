@@ -26,7 +26,10 @@ KNOWN_APPS = ["workpad", "notes", "notepad", "word", "excel", "chrome", "edge", 
               "outlook", "explorer", "vscode", "code", "slack", "powerpoint"]
 
 _THING = r"(notes|app|apps|application|document|doc|file|program|editor|" + "|".join(KNOWN_APPS) + r")"
-_LOST = r"(disappeared|disappear|vanished|vanish|gone|missing|off[- ]?screen|lost|closed by itself|not there)"
+# Includes speech-recognition renderings of "disappeared" seen on a real phone ("my notes is appeared") and
+# common misspellings. A false match only starts a read-only inspection; changes still need an observed cause.
+_LOST = (r"(diss?app?ear(ed|s|ing)?|(is|this|dis|des) appeared|vanish(ed|es)?|gone|missing|off[- ]?screen|lost|"
+         r"closed by itself|not there|not visible|invisible)")
 CATEGORY_PATTERNS.append(("window_missing", re.compile(
     r"\b(window|windows|off[- ]?screen|workpad)\b|"
     rf"\b{_LOST}\b[^.?!]{{0,40}}\b{_THING}\b|\b{_THING}\b[^.?!]{{0,40}}\b{_LOST}\b|"

@@ -12,6 +12,7 @@ export interface VoiceCallbacks {
 export class Voice {
   private rec: any = null;
   private listening = false;
+  private heardSomething = false;
   readonly recognitionSupported: boolean;
   readonly synthesisSupported: boolean;
 
@@ -28,6 +29,7 @@ export class Voice {
       this.rec.onresult = (ev: any) => {
         let text = "";
         let final = false;
+        this.heardSomething = true;
         for (let i = 0; i < ev.results.length; i++) {
           text += ev.results[i][0].transcript;
           if (ev.results[i].isFinal) final = true;
@@ -48,7 +50,10 @@ export class Voice {
       this.rec.onend = () => {
         if (this.listening) {
           this.listening = false;
-          this.cb.onState("idle");
+          // Seen on a real Android phone: recognition can end with "nomatch" and no error event, which used to
+          // leave the person with a blank status line. Say what happened instead.
+          if (this.heardSomething) this.cb.onState("idle");
+          else this.cb.onState("error", "I didn't catch any words. Tap to talk and speak closer to the phone, or type.");
         }
       };
     }
@@ -63,6 +68,7 @@ export class Voice {
     try {
       this.rec.start();
       this.listening = true;
+      this.heardSomething = false;
       this.cb.onState("listening");
     } catch {
       this.cb.onState("error", "Could not start listening. Try again.");

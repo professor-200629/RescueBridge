@@ -44,13 +44,14 @@ New-Item -ItemType Directory -Force $data | Out-Null
 $logs = Join-Path $data "logs"
 New-Item -ItemType Directory -Force $logs | Out-Null
 $common = @("-m", "rescuebridge.cli", "--data-dir", $data)
-$env:PYTHONUNBUFFERED = "1"
 
-function Start-Logged([string]$name, [string[]]$argv) {
+function Start-Logged([string]$name, [string[]]$subcommand) {
+  # The process writes its own log (--log-file). Start-Process -Redirect* would make it inherit this script's
+  # output handles, so anyone capturing start.ps1's output would wait until the backend exits.
+  $argv = $common + @("--log-file", (Join-Path $logs "$name.log")) + $subcommand
   # Windows PowerShell joins -ArgumentList with spaces, so quote anything that contains one.
   $quoted = $argv | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }
-  Start-Process -FilePath $py -ArgumentList $quoted -WindowStyle Hidden `
-    -RedirectStandardOutput (Join-Path $logs "$name.out.log") -RedirectStandardError (Join-Path $logs "$name.err.log") | Out-Null
+  Start-Process -FilePath $py -ArgumentList $quoted -WindowStyle Hidden | Out-Null
 }
 
 foreach ($pidFile in @("helper.pid", "backend.pid")) {
@@ -64,15 +65,15 @@ foreach ($pidFile in @("helper.pid", "backend.pid")) {
 
 if (-not $Fixture) {
   Write-Host "Starting Windows helper (current user, named pipe)..." -ForegroundColor Cyan
-  Start-Logged "helper" ($common + @("helper"))
+  Start-Logged "helper" @("helper")
   $deadline = (Get-Date).AddSeconds(15)
   while (-not (Test-Path (Join-Path $data "helper.pid"))) {
-    if ((Get-Date) -gt $deadline) { throw "Helper did not start. See $(Join-Path $logs 'helper.err.log')" }
+    if ((Get-Date) -gt $deadline) { throw "Helper did not start. See $(Join-Path $logs 'helper.log')" }
     Start-Sleep -Milliseconds 300
   }
 }
 
-$serveArgs = $common + @("serve", "--provider", $Provider, "--model", $Model)
+$serveArgs = @("serve", "--provider", $Provider, "--model", $Model)
 if ($Lan) { $serveArgs += "--lan" }
 if ($Usb) { $serveArgs += "--usb" }
 if ($Fixture) { $serveArgs += @("--fixture", "--fixture-scenario", $Scenario) }
@@ -81,7 +82,7 @@ Start-Logged "backend" $serveArgs
 $deadline = (Get-Date).AddSeconds(30)
 while ($true) {
   try { Invoke-RestMethod -Uri "http://127.0.0.1:8740/api/health" -TimeoutSec 2 | Out-Null; break } catch {}
-  if ((Get-Date) -gt $deadline) { throw "Backend did not become healthy. See $(Join-Path $logs 'backend.err.log')" }
+  if ((Get-Date) -gt $deadline) { throw "Backend did not become healthy. See $(Join-Path $logs 'backend.log')" }
   Start-Sleep -Milliseconds 400
 }
 if ($Usb) {

@@ -55,6 +55,7 @@ log = logging.getLogger("rescuebridge.service")
 
 MAX_ISSUES_PER_MISSION = 8
 OPEN_STATES = {s for s in IssueState} - {IssueState.RESOLVED, IssueState.UNSUPPORTED}
+_CLOSES_PROPOSALS = {IssueState.RESOLVED, IssueState.UNRESOLVED, IssueState.FAILED, IssueState.UNSUPPORTED}
 REVISABLE_ERRORS = {"PRECONDITION_FAILED", "ENDPOINT_CHANGED", "TARGET_CHANGED", "MONITORS_CHANGED", "TARGET_INVALID"}
 
 UNSUPPORTED_TEXT = {
@@ -214,6 +215,10 @@ class RecoveryService:
             changes.setdefault("next_manual_step", None)  # a fresh inspection supersedes earlier advice
         changes.update({"state": new.value, "updated_at": now_ms()})
         with self.store.tx():
+            if new in _CLOSES_PROPOSALS:
+                # Leaving the repair flow closes what is still open (e.g. a test tone after "it works" or after an
+                # Undo, both found on a real phone). Acting again starts from a fresh inspection.
+                self._supersede_open_proposals(issue["id"], f"issue {new.value}: {reason}"[:200])
             self.store.update("issues", issue["id"], changes)
             self.store.insert("issue_events", {"issue_id": issue["id"], "from_state": cur.value, "to_state": new.value,
                                                "reason": reason[:300], "at": now_ms()})
@@ -352,7 +357,6 @@ class RecoveryService:
             self._set_state(issue, IssueState.NEEDS_CLARIFICATION, "focused question",
                             clarification={"question": analysis.question, "options": analysis.options})
         elif analysis.outcome == "no_supported_cause":
-            self._supersede_open_proposals(issue["id"], "no supported cause on fresh observation")
             self._set_state(issue, IssueState.UNRESOLVED, "no supported cause", clarification=None,
                             next_manual_step=analysis.next_manual_step)
         elif analysis.outcome == "propose" and analysis.plan is not None:

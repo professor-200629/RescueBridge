@@ -51,6 +51,10 @@ const OUTCOME_TEXT: Record<string, string> = {
 };
 
 const PROPOSAL_KIND: Record<string, string> = { REPAIR: "Proposed change", TEST: "Proposed test", UNDO: "Proposed undo" };
+// Found on a real phone: in fixture mode the prompts asked the person to look for a target or listen for a tone
+// that do not exist. Say so instead of letting them search.
+const SIMULATION_NOTE = "Simulation mode: no real click-test target, window, or sound appears on the laptop. "
+  + "Answer for the scenario you are testing.";
 
 // ------------------------------------------------------------------------------------------ pairing
 export function renderPairing(root: HTMLElement, session: Session): void {
@@ -246,6 +250,10 @@ export class RecoveryApp {
     });
   }
 
+  private simulated(): boolean {
+    return this.payload?.status?.adapter === "Fixture Simulation";
+  }
+
   private renderConnection(): void {
     const age = (Date.now() - this.lastOk) / 1000;
     const helper = this.payload?.helper ?? {};
@@ -316,7 +324,8 @@ export class RecoveryApp {
       (i.open_proposals ?? []).map((pr: any) => this.proposalCard(pr)),
       i.state === "AWAITING_USER_CONFIRMATION" ? h("div", { class: "confirm" },
         h("p", { class: "q" }, conf?.question ?? "Does it work now?"),
-        conf?.test_kind === "click" ? h("p", { class: "hint" }, "A green click-test target should be on the laptop screen.") : null,
+        this.simulated() ? h("p", { class: "warn-text" }, SIMULATION_NOTE)
+          : conf?.test_kind === "click" ? h("p", { class: "hint" }, "A green click-test target should be on the laptop screen.") : null,
         h("div", { class: "options" },
           h("button", { id: `res-${i.issue_id}-works`, type: "button", class: "primary", onclick: () => void this.result(i, "works") }, "Yes, it works"),
           h("button", { id: `res-${i.issue_id}-broken`, type: "button", class: "secondary", onclick: () => void this.result(i, "still_broken") }, "No, still broken"),
@@ -345,6 +354,7 @@ export class RecoveryApp {
     return h("div", { class: `proposal kind-${pr.kind.toLowerCase()}`, role: "group", "aria-label": PROPOSAL_KIND[pr.kind] },
       h("p", { class: "label" }, `${PROPOSAL_KIND[pr.kind] ?? "Proposal"} (version ${pr.version})`),
       h("p", { class: "desc" }, pr.description),
+      pr.kind === "TEST" && this.simulated() ? h("p", { class: "warn-text" }, SIMULATION_NOTE) : null,
       h("p", { class: "small" }, h("span", { dataset: { expires: String(pr.expires_at) } }, `valid for ${secondsLeft(pr.expires_at)}`),
         " · approves exactly this text, for this laptop, until Stop"),
       pr.status === "PENDING" ? h("div", { class: "options" },

@@ -89,8 +89,15 @@ async def test_resolved_only_after_person_confirms(env):
     await env.svc.apply(env.phone, p["id"])
     await env.svc.verify(env.phone, iid)
     assert env.ctx.store.get("issues", iid)["state"] == "AWAITING_USER_CONFIRMATION"
+    tone = pending(env, iid, "TEST")
     res = env.svc.record_user_result(env.phone_ui, iid, "works", source=UserResultSource.UI_BUTTON)
     assert res["state"] == "RESOLVED"
+    # Found on the owner's phone: confirming before playing the tone left an approvable tone on a resolved issue.
+    assert env.ctx.store.get("proposals", tone["id"])["status"] == "SUPERSEDED"
+    assert not any(p["status"] == "PENDING" for p in res["open_proposals"])
+    with pytest.raises(DomainError):
+        env.svc.approve(env.phone_ui, tone["id"], tone["digest"])
+    assert env.ops.tones == []
 
 
 async def test_unmuted_audible_default_has_no_supported_cause_and_changes_nothing(env):
@@ -361,6 +368,26 @@ async def test_guarded_undo_blocked_after_intervening_change_and_allowed_otherwi
     assert res["operation"]["outcome"] == "APPLIED_STATE_VERIFIED"
     assert env.ops.state.endpoints[0].muted is True
     assert env.ctx.store.get("issues", iid)["state"] == "UNRESOLVED"
+
+
+async def test_undo_closes_the_pending_test_tone(env):
+    # Found on the owner's phone: after Undo re-muted the speaker, "play a test tone" was still approvable.
+    mute_default(env, vol=0.3)
+    iid = await start_audio(env)
+    await env.svc.inspect(env.phone, iid)
+    p = pending(env, iid)
+    env.svc.approve(env.phone_ui, p["id"], p["digest"])
+    op_id = (await env.svc.apply(env.phone, p["id"]))["operation"]["operation_id"]
+    await env.svc.verify(env.phone, iid)
+    tone = pending(env, iid, "TEST")
+    up = (await env.svc.request_undo(env.phone, op_id))["proposal"]
+    env.svc.approve(env.phone_ui, up["proposal_id"], up["digest"])
+    await env.svc.apply(env.phone, up["proposal_id"])
+    assert env.ctx.store.get("issues", iid)["state"] == "UNRESOLVED"
+    assert env.ctx.store.get("proposals", tone["id"])["status"] == "SUPERSEDED"
+    with pytest.raises(DomainError):
+        env.svc.approve(env.phone_ui, tone["id"], tone["digest"])
+    assert env.ops.tones == []
 
 
 async def test_model_recorded_result_requires_consistent_later_utterance(env):

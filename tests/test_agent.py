@@ -138,3 +138,12 @@ def test_keyword_interpreter_examples():
     assert interpret("stop").stop is True
     assert interpret("I'm right-handed").primary_button == "left"
     assert interpret("no, I still can't hear anything").no is True
+
+
+def test_keyword_interpreter_tolerates_real_phone_speech_recognition():
+    # Verbatim transcript from the owner's Samsung phone (Chrome speech recognition), 2026-10-21.
+    heard = "my click sir not working I can't hear anything in my notes is appeared up to each pics on the phone"
+    assert set(interpret(heard).categories) == {"mouse_buttons_wrong", "no_sound", "window_missing"}
+    for text in ("my notes dissapeared", "the notes window is not visible", "my notes this appeared"):
+        assert "window_missing" in interpret(text).categories, text
+    assert "window_missing" not in interpret("a new notification appeared").categories

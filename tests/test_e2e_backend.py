@@ -47,6 +47,8 @@ async def test_vertical_slice_audio_through_real_mcp(tmp_path):
         assert st["issues"][0]["state"] == "RESOLVED"
         assert st["issues"][0]["person_results"][0]["source"] == "model_interpreted_utterance"
         assert "confirmed resolved" in st["mission"]["server_summary"]
+        text = (await phone.get("/api/handoff")).json()["text"]
+        assert "repair: SET_AUDIO_ENDPOINT -> APPLIED_STATE_VERIFIED" in text and "test: PLAY_TEST_TONE" in text
         await phone.aclose()
 
 
@@ -75,6 +77,15 @@ async def test_stop_is_direct_and_revokes(tmp_path):
         r = await phone.post(f"/api/proposals/{prop['proposal_id']}/approve", json={"digest": prop["digest"]})
         assert r.status_code == 409
         assert be.ops.calls == []
+        # Continue re-inspects right away (found on a real phone: it used to leave the issue at REPORTED and the
+        # person had to find "Check again"); the result is a NEW proposal that still needs its own approval.
+        out = (await phone.post("/api/continue", json={})).json()
+        assert "checked everything again" in out["reply"]["text"] and "Unmute" in out["reply"]["text"]
+        issue = out["status"]["issues"][0]
+        assert issue["state"] == "PROPOSED"
+        fresh = issue["open_proposals"][0]
+        assert fresh["proposal_id"] != prop["proposal_id"] and fresh["status"] == "PENDING"
+        assert be.ops.calls == []  # inspection only
         await phone.aclose()
 
 

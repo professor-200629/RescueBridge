@@ -23,7 +23,7 @@ from starlette.routing import BaseRoute, Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from rescuebridge.agent.loop import Agent, AgentResult, describe_issue_result
+from rescuebridge.agent.loop import Agent, AgentResult, describe_issue_result, short_issue_line
 from rescuebridge.agent.mcp_client import McpToolClient
 from rescuebridge.agent.providers import OllamaProvider
 from rescuebridge.auth import AuthError, AuthService, SessionInfo
@@ -450,10 +450,20 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
             return bad
         assert sess and sess.device_id
         try:
-            ctx.service.continue_mission(ui_principal(sess))
+            st_after = ctx.service.continue_mission(ui_principal(sess))
         except DomainError as exc:
             return _err(exc.code, exc.message, 409)
-        reply = store_message(sess.device_id, "assistant", "Continuing. Everything will be inspected again before any change.")
+        # The button promises a re-check: run the same read-only MCP inspection as "Check again" for each issue
+        # that Stop interrupted. Any change still needs a new proposal and a new approval.
+        to_check = [i["issue_id"] for i in st_after.get("issues", []) if i.get("state") == "REPORTED"]
+        lines = []
+        if to_check:
+            async with lock_for(sess.device_id), await with_mcp(sess) as mcp:
+                for issue_id in to_check:
+                    r, _ = await mcp.call("inspect_recovery", {"issue_id": issue_id})
+                    lines.append(short_issue_line(r) if len(to_check) > 1 else describe_issue_result(r))
+        text = "Continuing. I checked everything again before any change." + (" " + " ".join(lines) if lines else "")
+        reply = store_message(sess.device_id, "assistant", text)
         return JSONResponse({"reply": reply, **state_payload(sess)})
 
     async def undo(request: Request) -> Response:
@@ -497,8 +507,8 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         for i in status["issues"]:
             lines.append(f"- {i['category']}: {i['state']}")
             lines += [f"    observed: {f}" for f in i["observed_facts"][:3]]
-            lines += [f"    operation: {o['action']} -> {o['outcome']} (before: {o['observed_before']}; after: "
-                      f"{o['observed_after']})" for o in i["operations"]]
+            lines += [f"    {(o.get('kind') or 'repair').lower()}: {o['action']} -> {o['outcome']} (before: "
+                      f"{o['observed_before']}; after: {o['observed_after']})" for o in i["operations"]]
             lines += [f"    person said: {r['result']} ({r['source']})" for r in i["person_results"]]
             if i.get("next_manual_step"):
                 lines.append(f"    next manual step: {i['next_manual_step']}")

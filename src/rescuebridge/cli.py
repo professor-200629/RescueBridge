@@ -10,9 +10,21 @@ import sys
 from rescuebridge.config import load_settings
 
 
+def _redirect_output(path: str) -> None:
+    """Send Python and native stdout/stderr to `path` (overwritten). The process writes its own log so that
+    start.ps1 can launch it without inheritable pipe handles, which would block anyone capturing start.ps1."""
+    import os
+
+    f = open(path, "w", encoding="utf-8", buffering=1)  # noqa: SIM115 - lives for the whole process
+    os.dup2(f.fileno(), 1)
+    os.dup2(f.fileno(), 2)
+    sys.stdout = sys.stderr = f
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="rescuebridge", description="RescueBridge second-channel recovery prototype")
     p.add_argument("--data-dir", help="data directory (default %%LOCALAPPDATA%%\\RescueBridge or RB_DATA_DIR)")
+    p.add_argument("--log-file", help="write stdout and stderr to this file (used by start.ps1 for hidden processes)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sp = sub.add_parser("serve", help="run the backend (browser app + MCP server)")
@@ -69,6 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     lw.add_argument("--poll", type=float, default=2.0)
 
     args = p.parse_args(argv)
+    if args.log_file:
+        _redirect_output(args.log_file)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if args.data_dir:
         import os
