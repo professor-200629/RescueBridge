@@ -26,6 +26,8 @@ class Settings:
     # Optional LAN HTTPS listener for the paired phone (off unless --lan is given).
     lan_enabled: bool = False
     lan_port: int = 8743
+    # Optional USB cable mode: `adb reverse` maps the phone's 127.0.0.1:bff_port to this laptop (off unless --usb).
+    usb_enabled: bool = False
     # MCP server: loopback only, bearer-token protected.
     mcp_host: str = "127.0.0.1"
     mcp_port: int = 8765
@@ -95,6 +97,7 @@ def load_settings(**overrides: object) -> Settings:
     if v := os.environ.get("RB_AGENT_TIMEOUT_S"):
         env["agent_timeout_s"] = float(v)
     env["lan_enabled"] = _env_bool("RB_LAN", False)
+    env["usb_enabled"] = _env_bool("RB_USB", False)
     env.update(overrides)
     settings = Settings(**env)  # type: ignore[arg-type]
     if settings.host_adapter not in {"helper", "fixture"}:

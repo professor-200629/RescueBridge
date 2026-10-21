@@ -2,7 +2,7 @@
 
 Checks: OS/runtime, dependencies, web build, data dir, helper reachability and mode, backend and MCP
 endpoints, local model availability (no downloads), voice prerequisites, LAN reachability prerequisites,
-and privilege context (administrator is NOT required and not recommended).
+USB phone mode (adb device list and reverse mappings, read-only), and privilege context (administrator is NOT required and not recommended).
 """
 
 from __future__ import annotations
@@ -99,7 +99,7 @@ async def run_doctor(settings: Settings) -> int:
 
     # --- voice / LAN --------------------------------------------------------------------------
     add("INFO", "voice", "Browser speech recognition (Chrome/Edge) may send audio to an online service; "
-        "microphone needs https (LAN mode) or localhost. Typing always works.")
+        "microphone needs https (LAN mode) or localhost (this laptop, or a phone in USB mode). Typing always works.")
     from rescuebridge.runtime import lan_ip
 
     ip = lan_ip()
@@ -108,6 +108,15 @@ async def run_doctor(settings: Settings) -> int:
         add("INFO", "phone connectivity", "Phone must be on the same Wi-Fi without client isolation (guest Wi-Fi "
             "often blocks device-to-device traffic). Windows may ask to allow Python on private networks when LAN "
             "mode starts; RescueBridge never changes firewall rules itself.")
+    from rescuebridge.usb import UsbLink
+
+    usb = UsbLink(settings.bff_port)
+    if not usb.adb:
+        add("INFO", "USB phone mode", "adb not found (optional, only for start.ps1 -Usb; RescueBridge never downloads it)")
+    else:
+        st = usb.inspect()  # lists devices and mappings only (may start the adb server process)
+        add("OK" if st.state in ("linked", "ready") else "INFO", "USB phone mode",
+            f"{st.state}{f' ({st.model})' if st.model else ''}: {st.detail}")
     elapsed = round((time.perf_counter() - t0) * 1000)
     width = max(len(c) for _, c, _ in rows)
     for status, check, detail in rows:

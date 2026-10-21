@@ -61,7 +61,10 @@ function render(body: HTMLElement, s: any, reload: () => Promise<void>): void {
         h("li", null, "Windows helper: ", helper.reachable ? h("span", { class: "dot ok" }, `● running (${helper.mode}, pid ${helper.pid})`)
           : h("span", { class: "dot bad" }, `● not reachable — ${helper.error ?? ""}`)),
         h("li", null, `Host adapter: ${s.host_adapter} · Language: ${s.model_provider} · Permission revision: ${s.revision}`),
-        h("li", null, s.lan_url ? `Phone address (LAN HTTPS): ${s.lan_url}` : "LAN mode off: only this laptop can open the app (start with -Lan for the phone)."),
+        h("li", null, s.lan_url ? `Phone address (LAN HTTPS): ${s.lan_url}` : "LAN mode off (Wi-Fi phones cannot connect; start with -Lan for that)."),
+        s.usb ? h("li", null, "Phone by USB cable: ", s.usb.state === "linked"
+          ? h("span", { class: "dot ok" }, `● linked${s.usb.model ? ` (${s.usb.model})` : ""}: the phone can open ${location.origin}/`)
+          : h("span", { class: "dot bad" }, `● not linked: ${s.usb.detail}`)) : null,
         h("li", null, "Live lab: ", s.lab && !s.lab.disarmed_at && s.lab.expires_at * 1000 > Date.now()
           ? h("strong", null, `ARMED for "${s.lab.session}" (${(s.lab.allow ?? []).join(", ")}) until ${fmtTime(s.lab.expires_at * 1000)}`)
           : "not armed"))),
@@ -70,7 +73,10 @@ function render(body: HTMLElement, s: any, reload: () => Promise<void>): void {
         h("p", { class: "code", "aria-label": "Pairing code" }, s.pairing.code),
         h("p", { class: "small" }, h("span", { dataset: { expires: String(s.pairing.expires_at) } }, `expires in ${secondsLeft(s.pairing.expires_at)}`), " · works once"),
         qr(s.pairing.qr_data_uri),
-        h("p", { class: "small" }, `On the phone open ${s.pairing.url}/ and enter the code (or scan).`))
+        h("p", { class: "small" }, `On the phone open ${s.pairing.url}/ and enter the code (or scan).`),
+        s.lan_url || s.usb?.state === "linked" ? null
+          : h("p", { class: "warn-text" }, "This QR code points at this laptop's own address, so a phone cannot open it yet. "
+            + "Plug the phone in by USB and restart with -Usb, or restart with -Lan for Wi-Fi."))
         : h("button", { id: "create-code", class: "primary", type: "button", onclick: () => void act("/api/host/pairing-code") }, "Create pairing code"),
       s.pending_requests.length ? h("div", null, h("h3", null, "Waiting for your decision"),
         s.pending_requests.map((r: any) => h("div", { class: "pending" },

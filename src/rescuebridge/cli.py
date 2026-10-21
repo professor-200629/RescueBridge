@@ -17,6 +17,8 @@ def main(argv: list[str] | None = None) -> int:
 
     sp = sub.add_parser("serve", help="run the backend (browser app + MCP server)")
     sp.add_argument("--lan", action="store_true", help="also serve HTTPS on this laptop's LAN address for the phone")
+    sp.add_argument("--usb", action="store_true",
+                    help="phone on a USB cable: keep `adb reverse` mapping the phone's 127.0.0.1 port to this laptop")
     sp.add_argument("--fixture", action="store_true", help="use the in-process fixture adapter (no Windows changes)")
     sp.add_argument("--fixture-scenario", default="healthy",
                     help="fixture preset: healthy, muted, silent, swapped, left-handed, offscreen, two-offscreen, "
@@ -29,6 +31,10 @@ def main(argv: list[str] | None = None) -> int:
     hp = sub.add_parser("helper", help="run the Windows helper (current user, named pipe)")
     hp.add_argument("--fixture", action="store_true", help="helper process backed by fixture state (no Windows changes)")
 
+    up = sub.add_parser("usb-link", help="phone on a USB cable: add (or --remove) the adb reverse mapping, then "
+                                         "check from the phone's side that the backend answers")
+    up.add_argument("--remove", action="store_true", help="remove the mapping instead")
+    up.add_argument("--serial", help="adb serial, only needed when several phones are connected")
     sub.add_parser("host-link", help="create a fresh one-time host-console link")
     sub.add_parser("doctor", help="read-only setup checks")
     tp = sub.add_parser("mcp-token", help="print a 1-hour MCP bearer token for a paired device (external MCP host)")
@@ -82,10 +88,32 @@ def main(argv: list[str] | None = None) -> int:
             overrides["ollama_model"] = args.model
         if args.lan:
             overrides["lan_enabled"] = True
+        if args.usb:
+            overrides["usb_enabled"] = True
+        for noisy in ("httpx2", "httpx", "mcp"):
+            logging.getLogger(noisy).setLevel(logging.WARNING)  # per-request INFO lines are noise in backend logs
         from rescuebridge.runtime import serve_backend
 
         asyncio.run(serve_backend(load_settings(**overrides)))
         return 0
+    if args.cmd == "usb-link":
+        from rescuebridge.usb import UsbLink
+
+        link = UsbLink(load_settings().bff_port, serial=args.serial)
+        if args.remove:
+            st = link.remove()
+            print(f"USB link: {st.state} - {st.detail}")
+            return 0 if st.state in ("removed", "no_adb", "no_device") else 1
+        st = link.ensure()
+        print(f"USB link: {st.state}{f' ({st.model})' if st.model else ''} - {st.detail}")
+        if st.state != "linked":
+            return 1
+        ok, detail = link.probe()
+        print(f"Phone-side check: {'OK' if ok else 'FAILED'} - {detail}")
+        if ok:
+            print("On the phone, scan the pairing QR code or open http://127.0.0.1:"
+                  f"{link.port}/ in Chrome.")
+        return 0 if ok else 2
     if args.cmd == "helper":
         from rescuebridge.runtime import run_helper
 

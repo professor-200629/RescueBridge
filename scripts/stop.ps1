@@ -20,6 +20,12 @@ foreach ($pidFile in @("backend.pid", "helper.pid")) {
   }
   Remove-Item $path -Force -ErrorAction SilentlyContinue
 }
+# USB phone mode: drop the adb reverse mapping if a phone is still plugged in (silent when there is none).
+$py = Join-Path (Split-Path -Parent $PSScriptRoot) ".venv\Scripts\python.exe"
+if (Test-Path $py) {
+  $usbOut = & $py -m rescuebridge.cli --data-dir $data usb-link --remove
+  if ($usbOut -match "removed|error") { Write-Host $usbOut }
+}
 $arming = Join-Path $data "lab\arming.json"
 if (Test-Path $arming) {
   $rec = Get-Content $arming -Raw | ConvertFrom-Json

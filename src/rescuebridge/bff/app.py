@@ -33,6 +33,7 @@ from rescuebridge.domain.enums import UserResultSource
 from rescuebridge.domain.service import DomainError, Principal
 from rescuebridge.ids import new_id, now_ms
 from rescuebridge.lab.arming import read_arming
+from rescuebridge.usb import UsbLink
 
 log = logging.getLogger("rescuebridge.bff")
 
@@ -79,6 +80,7 @@ class BffState:
     allowed_origins: set[str]
     allowed_hosts: set[str]
     lan_url: str | None = None
+    usb: UsbLink | None = None
     device_locks: dict[str, anyio.Lock] = field(default_factory=dict)
     busy_since: dict[str, int] = field(default_factory=dict)
     pairing_code: dict[str, Any] | None = None
@@ -93,7 +95,8 @@ def _set_cookie(resp: Response, request: Request, name: str, value: str, *, max_
                     secure=request.url.scheme == "https")
 
 
-def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = None) -> Starlette:
+def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = None,
+                  usb: UsbLink | None = None) -> Starlette:
     s: Settings = ctx.settings
     from rescuebridge.agent.llm_interpret import CombinedInterpreter, OllamaInterpreter
 
@@ -109,7 +112,7 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         origins.add(lan_url.rstrip("/"))
         hosts.add(lan_url.split("://", 1)[1].rstrip("/"))
     st = BffState(ctx=ctx, auth=auth, agent=agent, mcp_url=f"http://127.0.0.1:{s.mcp_port}/mcp",
-                  allowed_origins=origins, allowed_hosts=hosts, lan_url=lan_url)
+                  allowed_origins=origins, allowed_hosts=hosts, lan_url=lan_url, usb=usb)
 
     # ------------------------------------------------------------------ request guards
     def check_host(request: Request) -> JSONResponse | None:
@@ -531,7 +534,11 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
         arming = read_arming(s)
         missions = ctx.store.all("SELECT m.id, m.state, m.stop_state, m.created_at, d.name AS device_name FROM missions m "
                                  "LEFT JOIN devices d ON d.id = m.device_id ORDER BY m.created_at DESC LIMIT 5")
+        if st.usb and now_ms() - st.usb.status.checked_at > 10_000:
+            # Re-adds the mapping after the cable was replugged; observed every 10 s, never assumed.
+            await anyio.to_thread.run_sync(st.usb.ensure)
         return JSONResponse({"host_name": host_name(), "helper": helper, "pairing": code, "lan_url": st.lan_url,
+                             "usb": st.usb.status.view() if st.usb else None,
                              "pending_requests": auth.pending_requests(), "devices": auth.devices(),
                              "lab": arming, "missions": missions, "revision": ctx.service.revision(),
                              "model_provider": s.model_provider, "host_adapter": s.host_adapter})

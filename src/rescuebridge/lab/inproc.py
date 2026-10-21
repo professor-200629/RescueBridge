@@ -48,13 +48,14 @@ async def running_backend(data_dir: Path, ops: FixtureOps | None = None, **overr
     import uvicorn
 
     bff_port, mcp_port = free_port(), free_port()
+    usb = overrides.pop("usb", None)
     settings = load_settings(data_dir=data_dir, host_adapter="fixture",
                              model_provider=overrides.pop("model_provider", "rules"),
                              bff_port=bff_port, mcp_port=mcp_port, **overrides)
     ops = ops or FixtureOps()
     ctx = build_context(settings, fixture_ops=ops, lab_armed=lambda: False)
     auth = AuthService(ctx.store, settings)
-    bff = build_bff_app(ctx, auth)
+    bff = build_bff_app(ctx, auth, usb=usb)
     mcp_app, _ = build_mcp_app(ctx.service, auth, mcp_port)
     servers = [
         _QuietSignalServer(uvicorn.Config(bff, host="127.0.0.1", port=bff_port, lifespan="off", log_level="warning")),

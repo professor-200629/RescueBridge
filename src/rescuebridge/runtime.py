@@ -8,6 +8,7 @@ import logging
 import os
 import signal
 import socket
+import sys
 import threading
 import time
 from collections.abc import Iterator
@@ -81,7 +82,13 @@ async def serve_backend(settings: Settings) -> None:
         cert, key = ensure_lan_certificate(settings, ip)
         lan_url = f"https://{ip}:{settings.lan_port}"
         ssl_kwargs = {"ssl_certfile": str(cert), "ssl_keyfile": str(key)}
-    bff_app = build_bff_app(ctx, auth, lan_url=lan_url)
+    usb = None
+    if settings.usb_enabled:
+        from rescuebridge.usb import UsbLink
+
+        usb = UsbLink(settings.bff_port)
+        await asyncio.to_thread(usb.ensure)  # a missing phone is reported, not fatal: the laptop app still works
+    bff_app = build_bff_app(ctx, auth, lan_url=lan_url, usb=usb)
     mcp_app, _ = build_mcp_app(ctx.service, auth, settings.mcp_port)
     configs = [
         uvicorn.Config(bff_app, host=settings.bff_host, port=settings.bff_port, lifespan="off", log_level="warning"),
@@ -107,11 +114,17 @@ async def serve_backend(settings: Settings) -> None:
     print(f"  Phone/desktop app : http://127.0.0.1:{settings.bff_port}/" + (f"   LAN: {lan_url}/" if lan_url else ""))
     print(f"  Host console link : stored in {link_path} (one-time, 10 minutes)")
     print(f"  MCP endpoint      : http://127.0.0.1:{settings.mcp_port}/mcp (loopback, bearer token required)")
+    if usb:
+        print(f"  Phone by USB      : {usb.status.state}{f' ({usb.status.model})' if usb.status.model else ''} - "
+              f"{usb.status.detail}")
+    sys.stdout.flush()
     try:
         await asyncio.gather(*(srv.serve() for srv in servers))
     finally:
         with contextlib.suppress(OSError):
             (settings.data_dir / "backend.pid").unlink()
+        if usb and usb.status.state == "linked":
+            usb.remove()
 
 
 def run_helper(settings: Settings, *, fixture: bool = False) -> None:
