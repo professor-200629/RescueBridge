@@ -190,10 +190,31 @@ centrally when an issue leaves the repair flow); missed "is appeared"; Continue 
 prompts implying a real target/tone; blank status after a silent recognition; unlabelled handoff operations;
 `start.ps1` blocking callers that capture its output. Tests: 81 passed.
 
+### 5e. First real Windows repair from the phone (2026-10-21 18:03–18:07, owner)
+
+`start.ps1 -Usb -DataDir %LOCALAPPDATA%\RescueBridge-real` (**Real Windows**, keyword interpreter; helper log:
+`mode=real_windows`). Not the live lab: the owner muted the laptop themself, then used the phone. Evidence
+from the session database (read-only) and both logs (no errors):
+
+| Time | Step | Evidence |
+|---|---|---|
+| 18:04:21–18:04:27 | Scanned the QR code, accepted on the laptop | pairing request CLAIMED |
+| 18:05:16 | Spoke "I can't hear anything" (phone mic) | message `input_mode=voice`, transcript exact |
+| 18:05:18 | Real inspection | observation `real_windows`: default 'Speaker (Realtek(R) Audio)' **MUTED**, volume 72% → proposal "Unmute … and leave its volume at 72%" |
+| 18:05:23–18:05:24 | Approved on the phone | operation SET_AUDIO_ENDPOINT, adapter `real_windows`, **APPLIED_STATE_VERIFIED** (fresh observation: unmuted, 72%) |
+| 18:05:47–18:05:50 | Approved the test tone | PLAY_TEST_TONE `real_windows`, APPLIED_STATE_NOT_VERIFIED (the playback call returned; audibility is the person's answer) |
+| 18:06:10 | Tapped "Yes, it works" after the tone | person result `works`, `ui_button`, test `tone` → issue RESOLVED |
+| 18:06:40–18:06:41 | Spoke "my notes window disappeared" | real window inspection: 1 display, 3 eligible windows, **0 off-screen** → "nothing was moved", manual next steps; no proposal, no operation |
+
+Totals: 2 operations, both owner-approved on the phone; 8 observations, all `real_windows`. This verifies one
+real repair (unmute) and the real tone path once, on this laptop. Mouse swap, real window move, and the
+click-test window remain unverified on real Windows.
+
 ## 6. Not run (unverified)
 
-- **Real Windows changes** (mute/unmute, volume, mouse primary button, window move, test tone, click-test window):
-  require the owner-armed live lab (`LIVE_LAB.md`). Zero live-lab sessions so far.
+- **Real Windows changes**: unmute and the test tone were verified once (5e). Still unverified on real
+  Windows: volume change, mouse primary button, window move, click-test window, real Undo. Zero live-lab
+  sessions so far (`LIVE_LAB.md`).
 - **Phone over Wi-Fi**: LAN HTTPS mode, certificate acceptance on Android. (USB transport: see 5c.)
 - **Phone voice**: one real spoken utterance by the owner was recognised (imperfectly) and processed (5c);
   speech synthesis ran on the phone (5d). Recognition accuracy across speakers/accents was not measured.

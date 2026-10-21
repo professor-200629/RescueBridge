@@ -52,5 +52,6 @@ Keyboard recovery is always available: with swapped buttons, Tab/Enter/Alt+Tab s
 
 ## Status of live-lab evidence
 
-No live-lab session has been run yet: it requires the laptop owner to arm it. Until then, real-host
-**changes** are unverified; real-host **observation** is verified (see `VALIDATION.md`).
+No live-lab session has been run yet: it requires the laptop owner to arm it. Outside the lab, the owner
+muted the laptop by hand and repaired it from the phone on 2026-10-21 (unmute + test tone, real Windows,
+`VALIDATION.md` 5e). Mouse swap, window move and the click-test window are still unverified on real Windows.

@@ -24,9 +24,10 @@ code inspection.
 
 ## Unverified (code exists, not yet run for real)
 
-- Real Windows **changes**: `SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)`, Core Audio `SetMute` /
-  `SetMasterVolumeLevelScalar`, `SetWindowPos`, `winsound.PlaySound` tone, the click-test window. They need
-  the opt-in live lab (`LIVE_LAB.md`), armed by the laptop owner.
+- Real Windows **changes** other than unmute: `SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)`, Core Audio
+  `SetMasterVolumeLevelScalar`, `SetWindowPos`, the click-test window, real Undo. (Core Audio `SetMute` and the
+  `winsound.PlaySound` tone ran once on real Windows, approved by the owner on the phone: `VALIDATION.md` 5e.)
+  The rest needs a real fault — the opt-in live lab (`LIVE_LAB.md`) armed by the laptop owner.
 - **Phone over Wi-Fi**: LAN HTTPS mode and self-signed certificate acceptance were not tested on a real phone.
   LAN mode was not started on this laptop because Windows may show a firewall prompt that is the owner's
   decision.

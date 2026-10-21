@@ -104,8 +104,9 @@ on the laptop. `stop.ps1` removes the mapping. Manual control: `rescuebridge.cli
 (`%LOCALAPPDATA%\RescueBridge\certs`). Nothing is added to any trust store, so the phone shows a certificate
 warning for that address that you may choose to accept. Windows may ask whether Python may use the network:
 choose **Private networks** only. RescueBridge never edits firewall rules. Guest/hotel Wi-Fi often blocks
-device-to-device traffic (client isolation); use a home/hotspot network. **The phone path has not yet been
-tested on a real phone** — see `docs/VALIDATION.md`.
+device-to-device traffic (client isolation); use a home/hotspot network. **The Wi-Fi path has not yet been
+tested on a real phone**; the USB path has (QR pairing, voice, a real unmute approved on the phone) — see
+`docs/VALIDATION.md`.
 
 ### Voice
 
