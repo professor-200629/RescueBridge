@@ -238,8 +238,9 @@ Verified → Your check), before/after evidence tags, gradient-bordered proposal
 sticky Stop. Behaviour, ids and texts are unchanged. Checked: `pytest` 82 passed including the Edge
 end-to-end browser test on the new markup; Claude browser pane at 375×812 and 1280×860 (pairing, three-issue
 report, approve, before/after evidence, person confirmation, meter 1/3); `prefers-reduced-motion` turns off all
-animation; `prefers-contrast: more` switches to solid surfaces. **Not yet re-checked on the owner's phone**, and
-no screen-reader pass was done after the redesign.
+animation; `prefers-contrast: more` switches to solid surfaces. On the owner's phone (USB, real-mode backend)
+the owner reported the new design showing at ~18:56; the session database shows the phone's session active at
+18:56:03. No screen-reader pass was done after the redesign.
 
 ### 5h. MCP App card and shorter spoken replies (2026-10-21 evening)
 
