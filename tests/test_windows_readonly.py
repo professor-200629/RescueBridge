@@ -51,3 +51,30 @@ def test_unknown_window_target_is_refused_without_side_effects(engine):
                        "params": {"target_ref": "wt_0000000000000000", "rect": [0, 0, 800, 600],
                                   "monitors_fingerprint": w["result"]["monitors_fingerprint"]}})
     assert r["ok"] is False and r["error"]["code"] == "TARGET_INVALID"
+
+
+def test_tk_windows_can_start_inside_the_venv(tmp_path, monkeypatch):
+    # Found on the owner's laptop: WorkPad (and the click-test target) failed with "Can't find a usable init.tcl".
+    from rescuebridge.workpad import point_tk_at_base_install
+
+    fake = tmp_path / "tcl"
+    for sub, marker in (("tcl8", None), ("tcl8.6", "init.tcl"), ("tk8.6", "tk.tcl")):
+        (fake / sub).mkdir(parents=True)
+        if marker:
+            (fake / sub / marker).write_text("")
+    monkeypatch.delenv("TCL_LIBRARY", raising=False)
+    monkeypatch.delenv("TK_LIBRARY", raising=False)
+    point_tk_at_base_install(str(tmp_path))
+    import os
+
+    assert os.environ["TCL_LIBRARY"].endswith("tcl8.6") and os.environ["TK_LIBRARY"].endswith("tk8.6")
+    monkeypatch.undo()
+
+    import tkinter as tk
+
+    import rescuebridge.workpad  # noqa: F401 - applies the real fix for this interpreter
+
+    root = tk.Tk()  # a hidden window: created and destroyed, nothing else
+    root.withdraw()
+    assert root.tk.call("info", "patchlevel").startswith("8.")
+    root.destroy()

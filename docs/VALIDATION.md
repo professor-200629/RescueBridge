@@ -210,11 +210,32 @@ Totals: 2 operations, both owner-approved on the phone; 8 observations, all `rea
 real repair (unmute) and the real tone path once, on this laptop. Mouse swap, real window move, and the
 click-test window remain unverified on real Windows.
 
+### 5f. First live-lab session: real WorkPad window recovery (2026-10-21 18:12–18:15)
+
+The owner asked Claude to run the rehearsal ("you do all this by yourself, I am giving full access") after
+WorkPad crashed on their laptop with "Can't find a usable init.tcl" (venv Tcl lookup; fixed in this commit).
+Scope armed: **workpad only, 10 minutes** (`lab arm --session rehearsal-1 --minutes 10 --allow workpad`), data
+dir `%LOCALAPPDATA%\RescueBridge-real`. The phone steps were done by Claude on the owner's phone through the
+RescueBridge tab (CDP over adb); the owner was not at the phone, so Chrome was brought to the front once.
+
+| Time | Step | Evidence |
+|---|---|---|
+| 18:12 | Armed; clean state recorded | mouse swapped=False; audio 'Speaker (Realtek(R) Audio)' unmuted 72%; WorkPad running (145 chars, sha256 `ec8605d2…`) |
+| 18:12 | `lab inject workpad-offscreen` | WorkPad moved to (2320,188)–(3340,987), right of the 1920-px display |
+| 18:14:11 | Phone (typed): "my notes window disappeared" | badge **Controlled Live Lab**; real inspection: 1 display, 4 eligible windows, WorkPad 0 % on screen → proposal "Move … centered, keeping its size (1020x799)" |
+| 18:14:22 | Approved on the phone | MOVE_WINDOW, adapter `controlled_live_lab`, **APPLIED_STATE_VERIFIED**: before 1 off-screen, after 0; WorkPad text fingerprint unchanged |
+| 18:14 | Independent read-only measurement (GetWindowRect, per-monitor DPI) | WorkPad (450,170)–(1470,969) fully inside work area (0,0)–(1920,1140); visible; not minimized; same 145 chars / `ec8605d2…` |
+| 18:14:52 | `lab disarm` | restore actions: none needed (already back); watchdog exited 0; lab inactive |
+
+The phone's question "Can you see and use the window?" was **left for the owner**: no person result was entered
+by Claude. This verifies one real window move (`SetWindowPos`) on real Windows under the live lab.
+
 ## 6. Not run (unverified)
 
-- **Real Windows changes**: unmute and the test tone were verified once (5e). Still unverified on real
-  Windows: volume change, mouse primary button, window move, click-test window, real Undo. Zero live-lab
-  sessions so far (`LIVE_LAB.md`).
+- **Real Windows changes**: unmute and the test tone (5e) and a WorkPad window move under the live lab (5f)
+  were verified once each. Still unverified on real Windows: volume change, mouse primary button, the
+  click-test window (its Tk start-up bug is fixed and Tk start-up is tested, the window itself was not shown),
+  real Undo.
 - **Phone over Wi-Fi**: LAN HTTPS mode, certificate acceptance on Android. (USB transport: see 5c.)
 - **Phone voice**: one real spoken utterance by the owner was recognised (imperfectly) and processed (5c);
   speech synthesis ran on the phone (5d). Recognition accuracy across speakers/accents was not measured.

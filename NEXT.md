@@ -43,8 +43,8 @@ not reach the phone mic), any real Windows change (live lab never armed).
 
 ## Next actions (in order)
 
-1. Owner: live-lab WorkPad rehearsal (real window move) with the phone over USB, data dir
-   `%LOCALAPPDATA%\RescueBridge-real`; record results in `docs/VALIDATION.md` from the session DB.
+1. (done 2026-10-21, VALIDATION 5f) live-lab WorkPad rehearsal: real window move verified. WorkPad's Tk
+   start-up in the venv was broken and is fixed. Owner still has to answer the phone's "can you see it?".
 2. (done 2026-10-21) phone over USB: QR pairing, voice, real unmute + tone (VALIDATION 5c–5e).
 3. Decide provider for the demo (`ollama` + qwen2.5:3b-instruct recommended for understanding; ~5–6 s/request).
 4. Publish the repo (license visible), record the < 3 min video per `docs/DEMO_SCRIPT.md`, fill URLs in
