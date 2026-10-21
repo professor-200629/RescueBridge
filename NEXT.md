@@ -46,9 +46,13 @@ not reach the phone mic), any real Windows change (live lab never armed).
 1. (done 2026-10-21, VALIDATION 5f) live-lab WorkPad rehearsal: real window move verified. WorkPad's Tk
    start-up in the venv was broken and is fixed. Owner still has to answer the phone's "can you see it?".
 2. (done 2026-10-21) phone over USB: QR pairing, voice, real unmute + tone (VALIDATION 5c–5e).
-3. Decide provider for the demo (`ollama` + qwen2.5:3b-instruct recommended for understanding; ~5–6 s/request).
-4. Publish the repo (license visible), record the < 3 min video per `docs/DEMO_SCRIPT.md`, fill URLs in
-   `docs/SUBMISSION.md`. Do not submit without re-reading the official rules page.
+3. (done 2026-10-21 evening) futuristic redesign (5g), MCP App recovery card + simulator MCP Apps host, shorter
+   spoken replies (5h). 86 tests pass. Phone was unplugged at the last restart: re-link with `usb-link`.
+4. Owner: record the < 3 min video exactly per `docs/DEMO_SCRIPT.md` (keyword interpreter is fine; the local
+   LLM adds ~5–6 s per request).
+5. Owner: create an empty public GitHub repo and say "push it"; then fill URLs in `docs/SUBMISSION.md`.
+6. Optional, high value for "Impact": 1–2 family members try it for 10 min per `docs/HUMAN_TRIAL_PROTOCOL.md`.
+7. Submit on Devpost yourself after re-reading the official rules page (deadline 24 Oct 00:30 IST).
 
 ## Where things are
 

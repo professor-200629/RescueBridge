@@ -1,38 +1,50 @@
-# Demo script (target < 3:00) — proposal, not a recording
+# Demo video script (under 3:00)
 
-Nothing here has been recorded yet. Times are targets; adjust to real measured latency and **do not speed up or
-cut footage to imply faster or more autonomous behaviour**. Label every cut. Keep the
-"Independent Alexa+ concept simulator" label and the mode badge (Controlled Live Lab / Fixture Simulation) on
-screen.
+Nothing has been recorded yet. Everything below uses steps that already worked on the owner's laptop
+(`VALIDATION.md` 5e–5h). **Do not speed up or cut footage to make it look faster or more automatic**; if you cut
+a wait, put "cut: N s removed" on screen. Keep the "Independent Alexa+ concept simulator" label and the mode badge
+(**Controlled Live Lab** during the faults) visible. No claims of Amazon endorsement.
 
-## Before recording (owner-run, ~5 min)
+All commands use the real-mode data folder in which the phone is already paired:
+`C:/Users/Balu/AppData/Local/RescueBridge-real` (written as `DATA` below).
 
-1. Close personal apps and notifications (no personal windows, titles, or messages on screen).
-2. `scripts\start.ps1 -Usb` with the phone on a USB cable (verified transport; or `-Lan` for Wi-Fi), pair the
-   phone by scanning the QR code, open WorkPad
-   (`rescuebridge workpad`) and leave its synthetic notes visible for a moment.
-3. Arm the lab in a visible terminal: `rescuebridge lab arm --session demo-1 --minutes 15 --allow audio,workpad`
-   (add `mouse` only for the optional mouse segment).
-4. Screen-record the laptop **with system audio** (so the test tone is audible) and the phone screen
-   (Samsung screen recorder) or film both with a camera.
+## Before recording (about 10 minutes)
+
+1. Plug the phone in with the USB cable. Turn on Do Not Disturb on the phone. Close personal apps and
+   notifications on the laptop (nothing private on screen).
+2. Start RescueBridge (real Windows, phone over USB):
+   `powershell -ExecutionPolicy Bypass -File C:/dev/RescueBridge/scripts/start.ps1 -Usb -DataDir C:/Users/Balu/AppData/Local/RescueBridge-real`
+   If it says the phone is not linked, run:
+   `C:/dev/RescueBridge/.venv/Scripts/python.exe -m rescuebridge.cli --data-dir C:/Users/Balu/AppData/Local/RescueBridge-real usb-link`
+3. On the phone, open `http://127.0.0.1:8740/` in Chrome (already paired). Check the badge says **Real Windows**.
+4. Open WorkPad (window 1, leave it open):
+   `C:/dev/RescueBridge/.venv/Scripts/python.exe -m rescuebridge.cli --data-dir C:/Users/Balu/AppData/Local/RescueBridge-real workpad`
+5. Arm the test lab for 15 minutes (window 2, leave it open):
+   `C:/dev/RescueBridge/.venv/Scripts/python.exe -m rescuebridge.cli --data-dir C:/Users/Balu/AppData/Local/RescueBridge-real lab arm --session demo-1 --minutes 15 --allow audio,workpad`
+6. Recording: phone → Samsung **Screen recorder** (quick panel; sound: media). Laptop → **Snipping Tool**
+   video (Win+Shift+R, whole screen, with audio) so the test tone is heard. Or film both with a second phone.
 
 ## Script
 
-| Time | Shot | What happens (all real effects come from the armed live lab) |
+| Time | Show | Do and say |
 |---|---|---|
-| 0:00–0:15 | Balu to camera / laptop | "I once had a mouse problem that made my laptop hard to use. RescueBridge is a second channel: my phone." Caption: *Faults injected by RescueBridge's live lab (audio + WorkPad) for this demo.* Run `lab inject audio-mute` and `lab inject workpad-offscreen` on camera. |
-| 0:15–0:45 | Phone | Tap **Talk**: "My interview starts soon. I can't hear anything and my notes disappeared." Show the editable transcript, **Send**. Cards: *Sound — muted* and *Missing window — WorkPad 0 % on screen*, each with an exact proposal. Badge: **Controlled Live Lab**. |
-| 0:45–1:15 | Phone + laptop | Read the Sound proposal aloud, tap **Approve and apply** → "Done, and observed: unmuted". Tap **Approve and play** → tone audible → say "yes I heard it" → card shows **Resolved — you confirmed**; evidence shows before/after separately from "Your result". |
-| 1:15–1:40 | Phone + laptop | Approve the WorkPad proposal → WorkPad reappears with the same notes; evidence line "WorkPad's unsaved text: unchanged (same content fingerprint)". Say "yes I can see it". |
-| 1:40–2:05 | Phone | Honest failure: "and my pointer is frozen" → *Not supported* with the manual next step, nothing changed. Optional (if mouse scope armed): swapped buttons → question → "I'm right-handed" → approve → click-test target → confirm. |
-| 2:05–2:25 | Phone | Press **Stop**: "Stop requested" → "Stopped — the laptop helper confirmed it will reject further changes". Show that a stale proposal can no longer be approved. |
-| 2:25–2:55 | Slides / screen | Architecture (phone → backend acting as a real MCP client → MCP server 2025-11-25 Streamable HTTP → current-user helper). Evidence: test count, fixture evaluation numbers, interpreter benchmark, and what is NOT verified (phone mic if not shown, other faults). Next step: real-user trial with the prepared protocol. |
+| 0:00–0:15 | You / laptop | "When your laptop's sound, mouse or a window breaks, you usually need the broken thing to fix it. RescueBridge is a second channel: my phone." Caption: *Real laptop. Faults created by RescueBridge's test lab for this demo.* |
+| 0:15–0:25 | Laptop, window 3 | Run `lab inject audio-mute` and `lab inject workpad-offscreen` (same `--data-dir`). The sound mutes and WorkPad disappears. |
+| 0:25–0:55 | Phone | Tap the **orb**, say: "My interview starts soon. I can't hear anything and my notes disappeared." Check the words, tap **Send**. Show the short reply caption, the progress line, and the two cards. Badge: **Controlled Live Lab**. |
+| 0:55–1:25 | Phone + laptop | Sound card: read the exact change, tap **Approve and apply** → "Done, and observed: unmuted". Tap **Approve and play** → the tone plays on the laptop → tap **Yes, it works**. Point at **BEFORE / AFTER**. |
+| 1:25–1:50 | Phone + laptop | Window card: tap **Approve and apply** → WorkPad comes back to the middle of the screen with the same notes → "WorkPad's unsaved text: unchanged". Tap **Yes, it works**. The session bar shows all confirmed. |
+| 1:50–2:05 | Phone | Open **Alexa+ card view (MCP App)**: "This card is not drawn by the phone page. The MCP server ships it as an MCP App, so any MCP Apps host can show it. Approvals stay on my phone." |
+| 2:05–2:20 | Phone | Tap **STOP all changes** → "Stopped — the laptop helper confirmed it will reject further changes." Say: "Nothing changes without my approval, and Stop is enforced on the laptop." |
+| 2:20–2:50 | Screen (README) | Architecture: phone → backend (a real MCP client) → RescueBridge MCP server (protocol 2025-11-25, Streamable HTTP, MCP App card) → Windows helper running as me. Evidence: 86 automated tests; 24/24 simulated scenarios with 0 wrong changes and 0 false "fixed" claims (a naive "just fix it" baseline made 4 wrong changes and 7 false claims); real repairs verified on this laptop. Honest limits: mouse repair not yet shown on real Windows; Windows only; English only. |
+| 2:50–3:00 | Laptop, window 2 | Press **Ctrl+C** in the lab window (restores and disarms). "RescueBridge — fix your laptop from your phone, safely." |
 
-## Rules for the recording
+## If something goes wrong while recording
 
-- If the local LLM is used, show the real wait (~5–6 s per request on the test laptop) or label any cut
-  ("cut: 5 s of processing removed").
-- If phone voice recognition fails, type and say so on screen. Do not fake recognition.
-- If a segment is shown in Fixture Simulation, keep the **Fixture Simulation** badge visible and say it.
-- Restore the lab at the end (`lab restore` / Ctrl+C in the arming window) and keep that on screen briefly.
-- No third-party music or trademarks beyond factual mentions; no claims of Amazon endorsement.
+- Voice not recognised: tap an example phrase or type, and say "typing instead". Never fake recognition.
+- A step fails: say what happened and show it; do not cut it out to look successful.
+- Anything stuck: Ctrl+C in window 2 (lab restores), then `scripts/stop.ps1 -DataDir …`.
+
+## After recording
+
+Upload to YouTube as **Public** (rules: public on YouTube or Vimeo, under 3 minutes). Send Claude the link to
+put in `SUBMISSION.md`.
