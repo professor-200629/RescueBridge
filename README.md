@@ -33,8 +33,9 @@ step. No change is made for it.
 - Node.js (tested: 24.14.0) — only to build the web app once.
 - Optional: [Ollama](https://ollama.com) with a tool-capable small model already installed (tested:
   `qwen2.5:3b-instruct`). RescueBridge never downloads models.
-- For the phone: same Wi-Fi network as the laptop, a browser with speech recognition (tested design target:
-  Chrome on Android). See "Phone over LAN".
+- For the phone, either a USB data cable with USB debugging on and [Android platform-tools](https://developer.android.com/tools/releases/platform-tools)
+  (`adb`, installed by you) — see "Phone over USB cable" — or the same Wi-Fi network as the laptop — see
+  "Phone over LAN". Speech input needs a browser with speech recognition (design target: Chrome on Android).
 
 ## Setup (one time, while the laptop works normally)
 
@@ -57,6 +58,9 @@ powershell -ExecutionPolicy Bypass -File scripts\start.ps1
 # Real Windows + local language model for understanding phrasings (~5–6 s per request on the test laptop):
 powershell -ExecutionPolicy Bypass -File scripts\start.ps1 -Provider ollama -Model qwen2.5:3b-instruct
 
+# Phone plugged in by USB cable (adb reverse; nothing listens on Wi-Fi):
+powershell -ExecutionPolicy Bypass -File scripts\start.ps1 -Usb
+
 # Allow a paired phone on the same Wi-Fi (HTTPS on the laptop's LAN address):
 powershell -ExecutionPolicy Bypass -File scripts\start.ps1 -Lan
 
@@ -67,8 +71,8 @@ powershell -ExecutionPolicy Bypass -File scripts\start.ps1 -Fixture -Scenario in
 powershell -ExecutionPolicy Bypass -File scripts\stop.ps1
 ```
 
-`start.ps1` starts the helper (current user, named pipe) and the backend, then opens the **host console**
-on the laptop with a one-time link. In the host console: **Create pairing code** → on the phone open the
+`start.ps1` starts the helper (current user, named pipe) and the backend without windows (output in
+`%LOCALAPPDATA%\RescueBridge\logs`), then opens the **host console** on the laptop with a one-time link. In the host console: **Create pairing code** → on the phone open the
 shown address and enter the code (or scan the QR) → back on the laptop **Accept this device**. The phone
 now shows the recovery screen.
 
@@ -78,6 +82,21 @@ Equivalent manual commands (two terminals):
 .venv\Scripts\python.exe -m rescuebridge.cli helper
 .venv\Scripts\python.exe -m rescuebridge.cli serve --provider rules
 ```
+
+### Phone over USB cable
+
+Without `-Lan` or `-Usb` the backend listens only on `127.0.0.1`, and the pairing QR code encodes
+`http://127.0.0.1:8740/#pair=…` — on a phone that address is the phone itself, so the link does not open
+(the host console now says so under the QR code). With `-Usb`, RescueBridge runs
+`adb reverse tcp:8740 tcp:8740`: the phone's own `127.0.0.1:8740` becomes a tunnel over the cable to the
+laptop, so the same QR code opens on the phone. Nothing listens on Wi-Fi, no firewall prompt or certificate
+is involved, and the phone browser treats `http://127.0.0.1` as a secure context (microphone allowed). The
+host console shows **Phone by USB cable: linked (model)** and re-adds the mapping within 10 s after a replug.
+`start.ps1 -Usb` also checks from the phone's side (`curl` on the phone through `adb shell`) that the backend
+answers. Needs: USB debugging on (Settings → Developer options), the "Allow USB debugging?" prompt accepted,
+and `adb` on PATH (or `RB_ADB=<path to adb.exe>`); RescueBridge never downloads adb or changes phone settings.
+Any app on the phone can reach the tunnel while it exists; it still needs a pairing code and your approval
+on the laptop. `stop.ps1` removes the mapping. Manual control: `rescuebridge.cli usb-link [--remove]`.
 
 ### Phone over LAN
 
@@ -137,8 +156,11 @@ mouse/audio/window state without changing it.
 |---|---|
 | "Laptop helper: NOT reachable" | The helper window was closed or crashed: `scripts\stop.ps1`, then `scripts\start.ps1`. Stop is then recorded with status *unknown*, never "stopped". |
 | Host console says the link is invalid | One-time link already used or older than 10 minutes: `.venv\Scripts\python.exe -m rescuebridge.cli host-link`, then open the URL stored in the printed file. |
+| Scanned QR code / link does not open on the phone | Started without `-Usb` or `-Lan`, so the QR points at `127.0.0.1` (the phone itself). Plug in the cable and restart with `-Usb`, or use `-Lan`. |
+| Host console: "Phone by USB cable: not linked" | Follow the message: cable must carry data, USB debugging on, tap **Allow** on the phone, only one phone attached. `doctor` shows the adb state. |
 | Phone cannot open the LAN address | Same Wi-Fi? Guest network isolation? Windows network prompt answered "Private"? `doctor` shows the LAN address. |
-| Microphone button says unavailable | Needs a supported browser and https (LAN mode) or localhost. Type instead. |
+| Microphone button says unavailable | Needs a supported browser and https (LAN mode) or `127.0.0.1` (this laptop, or a phone in USB mode). Type instead. |
+| Something stopped working | Read `%LOCALAPPDATA%\RescueBridge\logsackend.err.log` and `helper.err.log` (overwritten at each start; no tokens or pairing codes). |
 | `ollama` provider replies "couldn't interpret" | `ollama list` must show the model; first request after idle can take ~1 minute while the model loads. |
 | Lab still armed after a crash | `.venv\Scripts\python.exe -m rescuebridge.cli lab restore` (keyboard works even with swapped buttons). |
 

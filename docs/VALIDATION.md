@@ -139,11 +139,30 @@ Fresh `git clone` of commit `3a94d4e` into `%TEMP%`, then `powershell -Execution
 | `scripts\start.ps1 -NoBrowser -DataDir .smoke-start` (real Windows mode) | helper + backend healthy in 6.4 s; `doctor`: helper reachable (real_windows, fence 1), backend 200, unauthenticated MCP 401 |
 | `scripts\stop.ps1` | **bug found by running it**: `"$pidFile:"` is parsed as a drive-qualified variable, so the script failed to parse. Fixed (`"${pidFile}:"`); after the fix it stopped exactly the two RescueBridge processes and left none running |
 
+## 5c. Real phone over USB cable (2026-10-21, owner's Samsung SM-A366E, Android 16)
+
+Trigger: the owner's first phone attempt (scan the QR code) failed; see `FRICTION_LOG.md` #9. Read-only
+inspection of the session database at that point: 0 pairing requests, 0 devices, the pairing code unused,
+so nothing from the phone had reached RescueBridge.
+
+| Check | Result |
+|---|---|
+| `adb devices -l` (adb 1.0.41 / platform-tools 36.0.2, installed by the owner) | one authorized device, model SM-A366E |
+| `scripts\start.ps1 -Fixture -Scenario interview -Usb` | `USB link: linked (SM-A366E)`; `Phone-side check: OK - phone fetched http://127.0.0.1:8740/api/health -> HTTP 200` (the phone's own `curl` through `adb reverse`) |
+| Host console (Claude browser pane) | "Phone by USB cable: ● linked (SM-A366E)" |
+| Replug recovery: `usb-link --remove`, then wait with the host console open | mapping restored automatically after 10 s; phone-side `curl` again HTTP 200 |
+| Backend logs | `%LOCALAPPDATA%\RescueBridge\logsackend.out.log` shows the startup lines incl. `Phone by USB : linked`; `backend.err.log` empty |
+| `pytest` after the change | 79 passed (9 new in `test_usb.py`, scripted adb); ruff and mypy clean; web build OK |
+
+Adapter for this run: **Fixture Simulation** (no real Windows settings read or changed). What the owner then
+did on the phone (pairing, typing or voice, approvals) is recorded below only from the session database.
+
 ## 6. Not run (unverified)
 
 - **Real Windows changes** (mute/unmute, volume, mouse primary button, window move, test tone, click-test window):
   require the owner-armed live lab (`LIVE_LAB.md`). Zero live-lab sessions so far.
-- **Phone**: LAN HTTPS mode, certificate acceptance on Android, microphone, speech recognition, speech synthesis.
+- **Phone over Wi-Fi**: LAN HTTPS mode, certificate acceptance on Android. (USB transport: see 5c.)
+- **Phone microphone, speech recognition, speech synthesis**: not yet observed (see 5c for updates).
 - **Voice in any browser**: no microphone was used in testing; typed input only.
 - **Human participants: zero.** Protocol ready in `HUMAN_TRIAL_PROTOCOL.md`.
 - Multi-monitor mixed DPI; other Windows builds; another laptop.

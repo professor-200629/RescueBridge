@@ -1,7 +1,7 @@
 # Threat model
 
-Scope: the prototype as built (laptop backend + helper, browser on the same laptop or a paired phone on the
-same Wi-Fi). Not a formal assessment; no external review or penetration test has been done.
+Scope: the prototype as built (laptop backend + helper, browser on the same laptop, or a paired phone on the
+same Wi-Fi or on a USB cable via `adb reverse`). Not a formal assessment; no external review or penetration test has been done.
 
 ## Assets
 
@@ -38,6 +38,7 @@ same Wi-Fi). Not a formal assessment; no external review or penetration test has
 | Elevation / integrity bypass | Runs non-elevated; windows of higher-integrity processes reported unsupported; no privileged APIs | — |
 | Persistent side effects | No firewall rules, certificates in trust stores, startup items, services, or drivers are created | Self-signed LAN cert must be accepted per phone |
 | Lab faults left behind | Lab requires explicit arming with scope and ≤30 min; snapshot; foreground watchdog restores at expiry/Ctrl+C; manual `lab restore`; temporary mouse swap reverts at sign-out | Power loss or a killed watchdog leaves audio/WorkPad faults until `lab restore` |
+| USB mode: other apps on the phone, or a phone connection posing as "local" | `adb reverse` is added only for one authorized phone and only to the BFF port (never MCP or the helper); pairing still needs the code and acceptance on the laptop; the host console still needs the one-time bootstrap secret that exists only in a current-user file on the laptop; `stop.ps1` and a clean exit remove the mapping; device serials are never logged | While the tunnel exists, any app on that phone can reach the BFF like a browser on the laptop can; the host console's "laptop only" address check cannot tell adb-forwarded connections from local ones (the bootstrap secret is the real control); anyone with USB debugging access to the phone already controls it |
 | LAN eavesdropping | HTTPS with a locally generated certificate | Self-signed: the person must verify they are on their own laptop's address |
 | Denial of service from the LAN | Rate limits on pairing only | No general rate limiting; prototype |
 

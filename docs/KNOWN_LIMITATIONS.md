@@ -27,9 +27,15 @@ code inspection.
 - Real Windows **changes**: `SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)`, Core Audio `SetMute` /
   `SetMasterVolumeLevelScalar`, `SetWindowPos`, `winsound.PlaySound` tone, the click-test window. They need
   the opt-in live lab (`LIVE_LAB.md`), armed by the laptop owner.
-- **Phone**: LAN HTTPS mode, self-signed certificate acceptance, Samsung/Chrome microphone and speech
-  recognition. Not tested on a real phone. LAN mode was not started on this laptop because Windows may show a
-  firewall prompt that is the owner's decision.
+- **Phone over Wi-Fi**: LAN HTTPS mode and self-signed certificate acceptance were not tested on a real phone.
+  LAN mode was not started on this laptop because Windows may show a firewall prompt that is the owner's
+  decision.
+- **Phone over USB cable** (`-Usb`, added 2026-10-21): the transport was verified on the owner's Samsung
+  SM-A366E (Android 16): the phone's own `curl` fetched `/api/health` through `adb reverse` (HTTP 200), and the
+  mapping was restored automatically 10 s after it was removed. See `VALIDATION.md` for what the owner then did
+  on the phone. USB mode needs a cable, USB debugging, and adb installed by the person, so it is a demo and
+  setup transport, not the end-state product channel.
+- **Microphone and speech** on a real phone (Samsung/Chrome speech recognition) — see `VALIDATION.md`.
 - **Voice in a real browser**: SpeechRecognition / speechSynthesis paths were not exercised (the automated
   browser has no microphone). Typing paths were.
 - Per-monitor DPI with mixed-DPI multi-monitor setups (only one 120-DPI display available).
@@ -44,8 +50,8 @@ code inspection.
 - Switching the default audio output device (only reported, never changed).
 - Minimized or maximized off-screen windows, windows on other virtual desktops (cloaked), and windows of
   elevated/protected processes.
-- Locked, sleeping, or powered-off laptops; a laptop without the helper running; no network path between
-  phone and laptop.
+- Locked, sleeping, or powered-off laptops; a laptop without the helper running; no network or USB path
+  between phone and laptop.
 - Undo for window moves (restoring an off-screen position would hide the window again).
 
 ## Language and interpretation

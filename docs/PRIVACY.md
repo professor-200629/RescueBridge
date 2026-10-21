@@ -12,6 +12,11 @@
 | WorkPad text | never leaves WorkPad; only a SHA-256 fingerprint and length are published | No |
 | Approvals, operations, results, timings | SQLite | Status summaries only |
 
+Backend and helper output goes to `%LOCALAPPDATA%\RescueBridge\logs` (overwritten at each start): startup
+lines, warnings, and error tracebacks only. No tokens, pairing codes, or access lines are written there; a
+traceback can contain a fragment of what was typed if that request failed. In USB mode only the phone's
+model name is shown; its serial number is not logged.
+
 Raw microphone audio is never recorded by RescueBridge. Speech recognition is performed by your browser;
 in Chrome/Edge this may send audio to an online service operated by the browser vendor (not to RescueBridge).
 

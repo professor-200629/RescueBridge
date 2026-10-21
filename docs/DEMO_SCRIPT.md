@@ -8,7 +8,8 @@ screen.
 ## Before recording (owner-run, ~5 min)
 
 1. Close personal apps and notifications (no personal windows, titles, or messages on screen).
-2. `scripts\start.ps1 -Lan` (or desktop-only without `-Lan`), pair the phone, open WorkPad
+2. `scripts\start.ps1 -Usb` with the phone on a USB cable (verified transport; or `-Lan` for Wi-Fi), pair the
+   phone by scanning the QR code, open WorkPad
    (`rescuebridge workpad`) and leave its synthetic notes visible for a moment.
 3. Arm the lab in a visible terminal: `rescuebridge lab arm --session demo-1 --minutes 15 --allow audio,workpad`
    (add `mouse` only for the optional mouse segment).

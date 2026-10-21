@@ -14,7 +14,7 @@ qwen2.5:3b-instruct and llama3.2:3b (no downloads by this project). MCP SDK 2.3.
 | Gate | Status |
 |---|---|
 | 0 Inspect + plan | done |
-| 1 Vertical slice | done in browser for fixture (all 3 workflows, approve → apply → verify → person result) and real Windows **read-only** (observe, question, no-cause, Stop fence). Real Windows **changes**: not run (needs owner-armed live lab). Phone: not tested. |
+| 1 Vertical slice | done in browser for fixture (all 3 workflows, approve → apply → verify → person result) and real Windows **read-only** (observe, question, no-cause, Stop fence). Real Windows **changes**: not run (needs owner-armed live lab). Phone: USB transport verified 2026-10-21 (SM-A366E, `start.ps1 -Usb`); owner's on-phone flow: see VALIDATION 5c. Wi-Fi/LAN phone: not tested. |
 | 2 Domain engine + adapters | done: SQLite state, proposals/digests/approvals, fence, idempotent apply, reconciliation, guarded Undo, 3 recipes, real + fixture adapters, named-pipe helper |
 | 3 UX + model/voice | browser app done; voice code written but not exercised with a microphone; local LLM measured (tool-calling 0/8; schema interpretation 20/20 held-out v1 symptoms) |
 | 4 Validation + submission | tests/eval/bench/docs done; pending: live lab, phone, fresh-clone setup timing, video, publishing |
@@ -26,11 +26,21 @@ ruff and mypy clean; Edge browser smoke test passes; fixture evaluation 24/24 (k
 held-out 2/6 (keyword) and 5/6 (LLM); 0 incorrect changes and 0 false completion claims in every evaluation run;
 start/stop/check scripts exercised (stop.ps1 parse bug found and fixed).
 
+## 2026-10-21 update
+
+Owner's first phone attempt: the QR code did not open (without `-Lan` it encodes `http://127.0.0.1:8740`,
+the phone itself). Fixed with USB cable mode (`be3b822`): `start.ps1 -Usb` keeps `adb reverse tcp:8740 tcp:8740`
+(re-added within 10 s after a replug while the host console is open), checks from the phone with its own
+`curl`, host console shows "Phone by USB cable: linked"; processes now run hidden with logs in
+`<data>\logs`. 79 tests pass. Owner's phone (Samsung SM-A366E, Android 16) has USB debugging authorized and
+adb at `C:\platform-tools-latest-windows\platform-tools` (on PATH).
+
 ## Next actions (in order)
 
 1. Owner: run the live-lab rehearsal in `docs/LIVE_LAB.md` (audio + workpad first), then record results in
    `docs/VALIDATION.md`.
-2. Owner: `scripts\start.ps1 -Lan`, pair the Samsung phone, test microphone + speech; record exactly what worked.
+2. Owner: phone flow over USB (`scripts\start.ps1 -Fixture -Scenario interview -Usb`, scan the QR), then voice
+   (Talk button); record only what the session DB / owner reports. Wi-Fi (`-Lan`) is optional.
 3. Decide provider for the demo (`ollama` + qwen2.5:3b-instruct recommended for understanding; ~5–6 s/request).
 4. Publish the repo (license visible), record the < 3 min video per `docs/DEMO_SCRIPT.md`, fill URLs in
    `docs/SUBMISSION.md`. Do not submit without re-reading the official rules page.

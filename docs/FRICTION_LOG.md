@@ -68,3 +68,16 @@ SDK 2.3.0). Only tools actually used are listed.
 - **Workaround:** the model fills one closed JSON schema; deterministic code calls the MCP tools.
 - **Suggestion:** guidance for designing MCP tool surfaces that small on-device models can use (state-scoped
   tool lists, fewer tools per turn).
+
+### 9. First real phone attempt: the pairing QR code pointed at the phone itself (our defect)
+
+- **Task (2026-10-21, owner):** pair the Samsung phone by scanning the host console's QR code.
+- **Steps:** `start.ps1 -Fixture -Scenario interview` (no `-Lan`), **Create pairing code**, scan with the phone.
+- **Expected:** the RescueBridge page opens on the phone. **Actual:** the link did not open. Without LAN mode
+  the backend listens on `127.0.0.1` only and the QR encodes `http://127.0.0.1:8740/#pair=…`, which on a phone
+  is the phone. The database confirmed nothing reached RescueBridge (no pairing request, no device).
+- **Severity:** High for the core story (the phone is the second channel), and the host console gave no hint.
+- **Fix:** USB cable mode (`start.ps1 -Usb`, `adb reverse`), a phone-side reachability check, a warning under
+  the QR code when no phone path is active, and backend logs to files (`be3b822`).
+- **Suggestion (for MCP/voice-device builders generally):** a second-device demo needs a documented local
+  transport; "same Wi-Fi + self-signed HTTPS" fails often enough that a cable fallback is worth shipping.
