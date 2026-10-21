@@ -5,22 +5,22 @@ Nothing has been recorded yet. Everything below uses steps that already worked o
 a wait, put "cut: N s removed" on screen. Keep the "Independent Alexa+ concept simulator" label and the mode badge
 (**Controlled Live Lab** during the faults) visible. No claims of Amazon endorsement.
 
-All commands use the real-mode data folder in which the phone is already paired:
-`C:/Users/Balu/AppData/Local/RescueBridge-real` (written as `DATA` below).
+Run these in PowerShell inside the RescueBridge folder. All commands use the real-mode data folder in which the phone is already paired:
+`$env:LOCALAPPDATA\RescueBridge-real` (written as `DATA` below).
 
 ## Before recording (about 10 minutes)
 
 1. Plug the phone in with the USB cable. Turn on Do Not Disturb on the phone. Close personal apps and
    notifications on the laptop (nothing private on screen).
 2. Start RescueBridge (real Windows, phone over USB):
-   `powershell -ExecutionPolicy Bypass -File C:/dev/RescueBridge/scripts/start.ps1 -Usb -DataDir C:/Users/Balu/AppData/Local/RescueBridge-real`
+   `powershell -ExecutionPolicy Bypass -File scripts\start.ps1 -Usb -DataDir $env:LOCALAPPDATA\RescueBridge-real`
    If it says the phone is not linked, run:
-   `C:/dev/RescueBridge/.venv/Scripts/python.exe -m rescuebridge.cli --data-dir C:/Users/Balu/AppData/Local/RescueBridge-real usb-link`
+   `.venv\Scripts\python.exe -m rescuebridge.cli --data-dir $env:LOCALAPPDATA\RescueBridge-real usb-link`
 3. On the phone, open `http://127.0.0.1:8740/` in Chrome (already paired). Check the badge says **Real Windows**.
 4. Open WorkPad (window 1, leave it open):
-   `C:/dev/RescueBridge/.venv/Scripts/python.exe -m rescuebridge.cli --data-dir C:/Users/Balu/AppData/Local/RescueBridge-real workpad`
+   `.venv\Scripts\python.exe -m rescuebridge.cli --data-dir $env:LOCALAPPDATA\RescueBridge-real workpad`
 5. Arm the test lab for 15 minutes (window 2, leave it open):
-   `C:/dev/RescueBridge/.venv/Scripts/python.exe -m rescuebridge.cli --data-dir C:/Users/Balu/AppData/Local/RescueBridge-real lab arm --session demo-1 --minutes 15 --allow audio,workpad`
+   `.venv\Scripts\python.exe -m rescuebridge.cli --data-dir $env:LOCALAPPDATA\RescueBridge-real lab arm --session demo-1 --minutes 15 --allow audio,workpad`
 6. Recording: phone → Samsung **Screen recorder** (quick panel; sound: media). Laptop → **Snipping Tool**
    video (Win+Shift+R, whole screen, with audio) so the test tone is heard. Or film both with a second phone.
 

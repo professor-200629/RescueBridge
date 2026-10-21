@@ -6,7 +6,7 @@ spec, SHA-256 3C4EC4EF…9A8E), `docs/VALIDATION.md`, `docs/KNOWN_LIMITATIONS.md
 ## Environment (observed 2026-10-20)
 
 Windows 11 Home 10.0.26300, HP Pavilion 16, Core Ultra 5 125U, 16 GB RAM (often only 1–3 GB free), Intel iGPU.
-User `professor04\balu`, Medium integrity. Python 3.13.0 via uv 0.12.9; Node 24.14.0; Ollama 0.32.3 with
+Standard (non-admin) user account, Medium integrity. Python 3.13.0 via uv 0.12.9; Node 24.14.0; Ollama 0.32.3 with
 qwen2.5:3b-instruct and llama3.2:3b (no downloads by this project). MCP SDK 2.3.0 (handshake max 2025-11-25).
 
 ## Gate status

@@ -6,7 +6,7 @@
 |---|---|
 | Track | Alexa+ (self-hosted MCP server, protocol 2025-11-25, Streamable HTTP) with an independent web simulator |
 | Mini challenges | none entered |
-| Code repository | `PENDING — GitHub URL not created yet` (public with Apache-2.0 `LICENSE`, or private shared with the reviewers listed in the FAQ) |
+| Code repository | https://github.com/professor-200629/RescueBridge (public, Apache-2.0 `LICENSE`) |
 | Demo video | `PENDING — not recorded` (public YouTube/Vimeo, < 3 min; plan in `DEMO_SCRIPT.md`) |
 | Deadline | Friday 23 October 2026, 12:00 PT = 24 October 00:30 IST (target: 23 October 21:00 IST) |
 
@@ -70,8 +70,8 @@ RescueBridge's MCP server; any MCP host with a device-bound bearer token can cal
 
 ## Pending before submission
 
-- [ ] Owner-run live-lab rehearsal for real changes (`LIVE_LAB.md`), then update `VALIDATION.md`.
-- [ ] Real phone test over LAN (certificate, microphone, speech recognition) and update `VALIDATION.md`.
-- [ ] Publish GitHub repository; check the license is visible; add URL above.
+- [x] Live-lab runs for real changes: audio (incl. Undo) and WorkPad (`VALIDATION.md` 5f, 5j). Mouse not run.
+- [x] Real phone test over USB (QR pairing, microphone, speech) — `VALIDATION.md` 5c–5j. Wi-Fi/LAN not tested.
+- [x] Publish GitHub repository (public, Apache-2.0).
 - [ ] Record and upload the demo; add URL above.
 - [ ] Re-read the official pages on submission day.

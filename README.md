@@ -40,7 +40,7 @@ step. No change is made for it.
 ## Setup (one time, while the laptop works normally)
 
 ```powershell
-git clone <REPO_URL — pending publication>  RescueBridge
+git clone https://github.com/professor-200629/RescueBridge.git RescueBridge
 cd RescueBridge
 powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
 ```
