@@ -230,6 +230,17 @@ RescueBridge tab (CDP over adb); the owner was not at the phone, so Chrome was b
 The phone's question "Can you see and use the window?" was **left for the owner**: no person result was entered
 by Claude. This verifies one real window move (`SetWindowPos`) on real Windows under the live lab.
 
+### 5g. Visual redesign (2026-10-21 evening)
+
+Dark "mission control" theme: voice orb with listening / thinking / speaking states, large reply caption,
+tappable example phrases, chat-bubble captions, a per-issue progress rail (Heard → Checked → Approval →
+Verified → Your check), before/after evidence tags, gradient-bordered proposals, a session progress meter,
+sticky Stop. Behaviour, ids and texts are unchanged. Checked: `pytest` 82 passed including the Edge
+end-to-end browser test on the new markup; Claude browser pane at 375×812 and 1280×860 (pairing, three-issue
+report, approve, before/after evidence, person confirmation, meter 1/3); `prefers-reduced-motion` turns off all
+animation; `prefers-contrast: more` switches to solid surfaces. **Not yet re-checked on the owner's phone**, and
+no screen-reader pass was done after the redesign.
+
 ## 6. Not run (unverified)
 
 - **Real Windows changes**: unmute and the test tone (5e) and a WorkPad window move under the live lab (5f)

@@ -16,3 +16,4 @@ evidence/raw/
 evidence/tmp/
 .smoke-real/
 .smoke-start/
+.smoke-design/

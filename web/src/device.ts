@@ -1,6 +1,7 @@
 // Paired-device recovery screen (phone or desktop browser).
 import { api, ApiError, setCsrf } from "./api";
 import { fmtTime, h, preserveFocus, replace, secondsLeft } from "./dom";
+import { icon } from "./icons";
 import { Voice } from "./voice";
 
 export interface Session {
@@ -22,6 +23,10 @@ const KIND_TITLE: Record<string, string> = {
   AUDIO_OUTPUT: "Sound",
   OFFSCREEN_WINDOW: "Missing window",
   UNSUPPORTED: "Not supported",
+};
+
+const KIND_ICON: Record<string, string> = {
+  MOUSE_BUTTONS: "mouse", AUDIO_OUTPUT: "speaker", OFFSCREEN_WINDOW: "window", UNSUPPORTED: "question",
 };
 
 const STATE_TEXT: Record<string, string> = {
@@ -56,19 +61,25 @@ const PROPOSAL_KIND: Record<string, string> = { REPAIR: "Proposed change", TEST:
 const SIMULATION_NOTE = "Simulation mode: no real click-test target, window, or sound appears on the laptop. "
   + "Answer for the scenario you are testing.";
 
+// The trust model as a visible path: nothing is "fixed" until the person confirms it.
+const STEPS = ["Heard", "Checked", "Approval", "Verified", "Your check"];
+const SUGGESTIONS = ["I can't hear anything", "My clicks are wrong", "My notes window disappeared"];
+const GREETING = "Hi. Tell me what's wrong with your laptop: tap the orb and speak, or type below. "
+  + "I'll check the laptop first and nothing changes until you approve it here.";
+
 // ------------------------------------------------------------------------------------------ pairing
 export function renderPairing(root: HTMLElement, session: Session): void {
   const frag = new URLSearchParams(location.hash.slice(1));
   const preset = frag.get("pair") ?? "";
   if (location.hash) history.replaceState(null, "", location.pathname);
-  const code = h("input", { id: "code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "9", value: preset,
-    "aria-describedby": "code-help", placeholder: "1234-5678" });
+  const code = h("input", { id: "code", class: "code-input", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "9",
+    value: preset, "aria-describedby": "code-help", placeholder: "1234 5678" });
   const name = h("input", { id: "devname", maxlength: "60", value: guessDeviceName() });
   const msg = h("p", { class: "notice", role: "status", "aria-live": "polite" });
-  const btn = h("button", { class: "primary big", type: "submit" }, "Request pairing");
+  const btn = h("button", { class: "primary big", type: "submit" }, icon("link"), "Request pairing");
   let polling = 0;
   const form = h("form", {
-    class: "card",
+    class: "card pair",
     onsubmit: async (e: Event) => {
       e.preventDefault();
       btn.setAttribute("disabled", "");
@@ -95,11 +106,15 @@ export function renderPairing(root: HTMLElement, session: Session): void {
       }
     },
   },
-    h("h2", null, "Pair this device with your laptop"),
-    h("p", null, `Do this while the laptop (${session.host_name}) is still working normally. On the laptop, open the `,
-      h("strong", null, "RescueBridge host console"), ", create a pairing code, then enter it here."),
+    h("div", { class: "pair-hero", "aria-hidden": "true" }, h("span", { class: "pair-node" }, icon("phone")),
+      h("span", { class: "pair-beam" }), h("span", { class: "pair-node" }, icon("laptop"))),
+    h("h2", null, "Pair this phone with your laptop"),
+    h("ol", { class: "steps" },
+      h("li", null, h("strong", null, "On the laptop"), ` (${session.host_name}): open the RescueBridge host console and create a pairing code.`),
+      h("li", null, h("strong", null, "Here"), ": scan its QR code or type the 8 digits."),
+      h("li", null, h("strong", null, "On the laptop"), ": tap Accept this device.")),
     h("label", { for: "code" }, "Pairing code (8 digits)"), code,
-    h("p", { id: "code-help", class: "hint" }, "The code works once and expires in 5 minutes. After you send it, accept this device on the laptop."),
+    h("p", { id: "code-help", class: "hint" }, "Works once, expires in 5 minutes. Do this while the laptop still works normally."),
     h("label", { for: "devname" }, "Name for this device"), name,
     btn, msg);
   replace(root, header(session), h("main", { id: "main" }, form));
@@ -123,10 +138,26 @@ function guessDeviceName(): string {
 }
 
 function header(session: Session, status?: HTMLElement): HTMLElement {
-  return h("header", { class: "top" },
-    h("div", { class: "brand" }, h("span", { class: "logo", "aria-hidden": "true" }, "⛑"), h("h1", null, "RescueBridge")),
-    h("p", { class: "sim-label" }, "Independent Alexa+ concept simulator · not an Amazon product"),
-    status ?? h("p", { class: "conn" }, `Laptop: ${session.host_name}`));
+  return h("header", { class: "top" }, h("div", { class: "top-inner" },
+    h("div", { class: "brand" }, h("span", { class: "logo" }, icon("logo")),
+      h("div", null, h("h1", null, "RescueBridge"),
+        h("p", { class: "sim-label" }, "Independent Alexa+ concept simulator · not an Amazon product"))),
+    status ?? h("p", { class: "conn" }, h("span", { class: "chip" }, icon("laptop"), session.host_name))));
+}
+
+/** [steps done, active step (-1 none), halted] for the progress rail. */
+function progress(i: any): [number, number, boolean] {
+  const verified = (i.operations ?? []).some((o: any) => o.kind === "REPAIR"
+    && ["APPLIED_STATE_VERIFIED", "NO_CHANGE_NEEDED"].includes(o.outcome));
+  switch (i.state) {
+    case "REPORTED": case "INSPECTING": return [1, 1, false];
+    case "NEEDS_CLARIFICATION": case "PROPOSED": return [2, 2, false];
+    case "APPROVED": case "APPLYING": case "VERIFYING": return [3, 3, false];
+    case "AWAITING_USER_CONFIRMATION": return [4, 4, false];
+    case "RESOLVED": return [5, -1, false];
+    case "UNSUPPORTED": return [1, 1, true];
+    default: return verified ? [4, 4, true] : [2, 2, true]; // UNRESOLVED / FAILED / STOPPED
+  }
 }
 
 // ------------------------------------------------------------------------------------------ recovery app
@@ -140,9 +171,10 @@ export class RecoveryApp {
   private lastSpokenId = "";
   private voice: Voice;
   private els!: {
-    status: HTMLElement; convo: HTMLElement; issues: HTMLElement; actions: HTMLElement; mic: HTMLButtonElement;
-    micState: HTMLElement; input: HTMLTextAreaElement; send: HTMLButtonElement; stopSpeak: HTMLButtonElement;
-    stopBtn: HTMLButtonElement; stopStatus: HTMLElement; diag: HTMLDetailsElement; diagBody: HTMLElement; working: HTMLElement;
+    status: HTMLElement; hero: HTMLElement; caption: HTMLElement; convo: HTMLElement; issues: HTMLElement;
+    actions: HTMLElement; mic: HTMLButtonElement; micLabel: HTMLElement; micState: HTMLElement;
+    input: HTMLTextAreaElement; send: HTMLButtonElement; stopSpeak: HTMLButtonElement; stopBtn: HTMLButtonElement;
+    stopStatus: HTMLElement; diag: HTMLDetailsElement; diagBody: HTMLElement; working: HTMLElement;
   };
 
   constructor(private root: HTMLElement, private session: Session) {
@@ -157,15 +189,18 @@ export class RecoveryApp {
         }
       },
       onState: (state, detail) => {
-        this.els.mic.setAttribute("aria-pressed", String(state === "listening"));
-        this.els.mic.classList.toggle("listening", state === "listening");
-        this.els.mic.textContent = state === "listening" ? "Listening… tap to finish" : "Tap to talk";
-        this.els.micState.textContent = state === "listening" ? "Listening — speak now." : detail ?? "";
+        const listening = state === "listening";
+        this.els.mic.setAttribute("aria-pressed", String(listening));
+        this.els.mic.classList.toggle("listening", listening);
+        this.els.micLabel.textContent = listening ? "Listening… tap to finish" : "Tap to talk";
+        this.els.micState.textContent = listening ? "Listening — speak now." : detail ?? "";
+        this.orb(listening ? "listening" : this.sending ? "thinking" : "idle");
       },
       onSpeaking: (speaking) => {
         this.els.stopSpeak.hidden = !speaking;
         if (speaking) this.els.micState.textContent = "Speaking the reply… (Stop speaking only silences this device)";
         else if (this.els.micState.textContent?.startsWith("Speaking")) this.els.micState.textContent = "";
+        if (!this.voice.isListening && !this.sending) this.orb(speaking ? "speaking" : "idle");
       },
     });
     this.build();
@@ -174,27 +209,40 @@ export class RecoveryApp {
     window.setInterval(() => this.tick(), 1000);
   }
 
+  private orb(state: "idle" | "listening" | "thinking" | "speaking"): void {
+    this.els.hero.dataset.state = state;
+  }
+
   private build(): void {
-    const status = h("p", { class: "conn", role: "status" }, "Connecting…");
-    const mic = h("button", { class: "mic big", type: "button", "aria-pressed": "false",
-      onclick: () => (this.voice.isListening ? this.voice.stopListening() : this.voice.start()) }, "Tap to talk");
-    const micState = h("p", { class: "hint", role: "status", "aria-live": "polite" },
-      this.voice.recognitionSupported ? "Voice input uses this browser's speech recognition, which may send audio to an online service. You can always type."
+    const status = h("div", { class: "conn", role: "status" }, h("span", { class: "chip" }, "Connecting…"));
+    const micLabel = h("span", { class: "orb-label" }, "Tap to talk");
+    const mic = h("button", { class: "orb", type: "button", "aria-pressed": "false",
+      onclick: () => (this.voice.isListening ? this.voice.stopListening() : this.voice.start()) },
+      h("span", { class: "orb-visual", "aria-hidden": "true" },
+        h("span", { class: "orb-rings" }, h("span"), h("span"), h("span")),
+        h("span", { class: "orb-core" }, icon("mic", "orb-ico"))),
+      micLabel);
+    const micState = h("p", { class: "hint mic-state", role: "status", "aria-live": "polite" },
+      this.voice.recognitionSupported ? "Voice uses this browser's speech recognition, which may send audio to an online service. You can always type."
         : "Voice input is not available here (needs a supported browser and a secure https or localhost page). Type instead.");
-    const input = h("textarea", { id: "say", rows: "3", maxlength: "500", placeholder: "e.g. My clicks are wrong and I can't hear anything",
+    const caption = h("div", { class: "caption" });
+    const input = h("textarea", { id: "say", rows: "2", maxlength: "500", placeholder: "Or type it here, e.g. My clicks are wrong and I can't hear anything",
       "aria-label": "What is happening? (editable transcript)" });
-    const send = h("button", { class: "primary", type: "submit" }, "Send");
+    const send = h("button", { class: "primary send", type: "submit" }, icon("send"), "Send");
     const stopSpeak = h("button", { type: "button", class: "secondary", hidden: true,
       onclick: () => this.voice.stopSpeaking() }, "Stop speaking (does not stop repairs)");
-    const speakToggle = h("input", { type: "checkbox", id: "speak", checked: true,
+    const speakToggle = h("input", { type: "checkbox", id: "speak", class: "switch", checked: true,
       onchange: (e: Event) => { this.speakReplies = (e.target as HTMLInputElement).checked; if (!this.speakReplies) this.voice.stopSpeaking(); } });
     const working = h("p", { class: "working", role: "status", "aria-live": "polite" });
-    const form = h("form", { class: "talk card", onsubmit: (e: Event) => { e.preventDefault(); void this.send(); } },
-      h("h2", null, "Tell me what's wrong"), mic, micState,
-      h("label", { for: "say" }, "Your words (edit before sending)"), input,
-      h("div", { class: "row" }, send, stopSpeak),
-      h("div", { class: "row small" }, speakToggle, h("label", { for: "speak" }, "Speak replies aloud on this device")),
+    const suggestions = h("div", { class: "suggest", role: "group", "aria-label": "Example phrases" },
+      SUGGESTIONS.map((s) => h("button", { type: "button", class: "chip-btn", onclick: () => { input.value = s; this.voiceText = ""; input.focus(); } }, s)));
+    const form = h("form", { class: "talk", onsubmit: (e: Event) => { e.preventDefault(); void this.send(); } },
+      h("h2", { class: "sr-only" }, "Tell me what's wrong"), input,
+      h("div", { class: "row" }, send, stopSpeak), suggestions,
+      h("div", { class: "row small toggle" }, speakToggle, h("label", { for: "speak" }, "Speak replies aloud on this device")),
       working);
+    const hero = h("section", { class: "hero card", "aria-label": "Talk to RescueBridge", dataset: { state: "idle" } },
+      mic, micState, caption, form);
     const convo = h("section", { class: "convo card", "aria-label": "Conversation captions" });
     const issues = h("section", { class: "issues", "aria-label": "Issues" });
     const actions = h("section", { class: "actions" });
@@ -202,18 +250,21 @@ export class RecoveryApp {
     const diag = h("details", { class: "card diag", ontoggle: () => { if (diag.open) void this.loadDiagnostics(); } },
       h("summary", null, "Diagnostics (for developers)"), diagBody);
     const stopStatus = h("span", { class: "stop-status", role: "status", "aria-live": "assertive" });
-    const stopBtn = h("button", { class: "stop", type: "button", onclick: () => void this.stop() }, "■ STOP all changes");
+    const stopBtn = h("button", { class: "stop", type: "button", onclick: () => void this.stop() }, icon("stop"), "STOP all changes");
     const intro = h("details", { class: "card intro", open: true },
       h("summary", null, "What this can do"),
-      h("ul", null,
-        h("li", null, "Mouse buttons swapped against your preference → put them back (after you approve)."),
-        h("li", null, "Muted or silent default speaker → unmute it and let you test it (after you approve)."),
-        h("li", null, "An app window moved off-screen → bring it back without closing it (after you approve).")),
-      h("p", { class: "hint" }, "Anything else is reported as unsupported. Nothing changes on the laptop unless you tap Approve. Your laptop must be on, unlocked, and running RescueBridge."));
+      h("div", { class: "tiles" },
+        h("div", { class: "tile" }, icon("mouse"), h("span", null, "Swapped mouse buttons")),
+        h("div", { class: "tile" }, icon("speaker"), h("span", null, "Muted or silent sound")),
+        h("div", { class: "tile" }, icon("window"), h("span", null, "Window lost off-screen"))),
+      h("p", { class: "hint" }, icon("shield", "ico inline"), " Nothing changes on the laptop unless you tap Approve. Anything else is reported as unsupported. "
+        + "Your laptop must be on, unlocked, and running RescueBridge."));
     replace(this.root, header(this.session, status),
-      h("main", { id: "main" }, intro, form, convo, issues, actions, diag),
+      h("main", { id: "main" }, hero, issues, intro, convo, actions, diag),
       h("footer", { class: "stop-bar" }, stopBtn, stopStatus));
-    this.els = { status, convo, issues, actions, mic, micState, input, send, stopSpeak, stopBtn, stopStatus, diag, diagBody, working };
+    this.els = { status, hero, caption, convo, issues, actions, mic, micLabel, micState, input, send, stopSpeak, stopBtn,
+      stopStatus, diag, diagBody, working };
+    this.renderCaption(null);
   }
 
   private lastKey = "";
@@ -259,16 +310,23 @@ export class RecoveryApp {
     const helper = this.payload?.helper ?? {};
     const adapter = this.payload?.status?.adapter ?? "unknown";
     let conn: HTMLElement;
-    if (this.lastOk && age < 6) conn = h("span", { class: "dot ok" }, "● Connected");
-    else if (this.lastOk && age < 20) conn = h("span", { class: "dot warn" }, "● Reconnecting…");
-    else conn = h("span", { class: "dot bad" }, this.lastOk ? `● Disconnected since ${fmtTime(this.lastOk)}` : "● Not connected yet");
-    const helperText = helper.reachable === false ? "Laptop helper: NOT reachable" : helper.reachable ? "Laptop helper: reachable" : "Laptop helper: not checked yet";
-    replace(this.els.status, conn, ` to ${this.session.host_name} · `, h("span", { class: `mode mode-${adapter.replace(/\s+/g, "-").toLowerCase()}` }, adapter),
-      ` · ${helperText} · ${this.session.device_name ?? ""}`);
+    if (this.lastOk && age < 6) conn = h("span", { class: "chip dot ok" }, "Connected");
+    else if (this.lastOk && age < 20) conn = h("span", { class: "chip dot warn" }, "Reconnecting…");
+    else conn = h("span", { class: "chip dot bad" }, this.lastOk ? `Disconnected since ${fmtTime(this.lastOk)}` : "Not connected yet");
+    const helperText = helper.reachable === false ? "Laptop helper: NOT reachable" : helper.reachable ? "Helper ready" : "Helper not checked yet";
+    replace(this.els.status, conn,
+      h("span", { class: "chip" }, icon("laptop"), this.session.host_name),
+      h("span", { class: `chip mode mode-${adapter.replace(/\s+/g, "-").toLowerCase()}` }, adapter),
+      h("span", { class: `chip ${helper.reachable === false ? "bad" : ""}` }, helperText));
   }
 
   private render(): void {
     preserveFocus(() => this.renderInner());
+  }
+
+  private renderCaption(last: any | null): void {
+    replace(this.els.caption, h("span", { class: "who" }, icon("spark", "ico inline"), " RescueBridge"),
+      h("p", { class: "caption-text" }, last?.text ?? GREETING));
   }
 
   private renderInner(): void {
@@ -276,13 +334,15 @@ export class RecoveryApp {
     const p = this.payload;
     if (!p) return;
     this.lastKey = JSON.stringify([p.status, p.messages, Boolean(p.busy_since), p.helper?.reachable]);
-    // conversation captions (last 12)
+    // conversation captions (last 12) as chat bubbles; the newest reply is also the big caption under the orb
     const msgs: any[] = p.messages ?? [];
-    replace(this.els.convo, h("h2", null, "Conversation"),
-      msgs.length ? h("ol", { class: "msgs" }, msgs.slice(-12).map((m) =>
-        h("li", { class: `msg ${m.role}` }, h("span", { class: "who" }, m.role === "user" ? "You" : m.role === "assistant" ? "RescueBridge" : "Note"),
-          h("span", { class: "text" }, m.text)))) : h("p", { class: "hint" }, "No messages yet."));
+    const list = h("ol", { class: "msgs" }, msgs.slice(-12).map((m) =>
+      h("li", { class: `msg ${m.role}` }, h("span", { class: "who" }, m.role === "user" ? (m.input_mode === "voice" ? "You (voice)" : "You") : m.role === "assistant" ? "RescueBridge" : "Note"),
+        h("span", { class: "text" }, m.text))));
+    replace(this.els.convo, h("h2", null, "Conversation"), msgs.length ? list : h("p", { class: "hint" }, "No messages yet."));
+    list.scrollTop = list.scrollHeight;
     const last = msgs.filter((m) => m.role === "assistant").slice(-1)[0];
+    this.renderCaption(last ?? null);
     if (last && last.id !== this.lastSpokenId) {
       if (this.lastSpokenId && this.speakReplies) this.voice.speak(last.text);
       this.lastSpokenId = last.id;
@@ -294,9 +354,17 @@ export class RecoveryApp {
       (this.root.querySelector("details.intro") as HTMLDetailsElement | null)?.removeAttribute("open");
     }
     const issues: any[] = st?.issues ?? [];
+    const resolved = issues.filter((i) => i.state === "RESOLVED").length;
+    const bar = h("span");
+    bar.style.setProperty("--p", issues.length ? `${Math.round((100 * resolved) / issues.length)}%` : "0%");
     replace(this.els.issues,
-      st?.mission ? h("p", { class: "summary" }, h("strong", null, "Server status: "), st.mission.server_summary,
-        st.mission.state === "STOPPED" ? h("span", { class: "badge bad" }, `Stopped (${st.mission.stop_state})`) : null) : null,
+      st?.mission ? h("div", { class: "mission card" },
+        h("div", { class: "mission-top" }, h("span", { class: "eyebrow" }, "Recovery session"),
+          h("span", { class: "count" }, `${resolved}/${issues.length} confirmed`),
+          st.mission.state === "STOPPED" ? h("span", { class: "badge bad" }, `Stopped (${st.mission.stop_state})`) : null),
+        h("p", { class: "summary" }, h("strong", null, "Server status: "), st.mission.server_summary),
+        h("div", { class: "meter", role: "progressbar", "aria-label": "Issues confirmed resolved", "aria-valuemin": "0",
+          "aria-valuemax": String(issues.length), "aria-valuenow": String(resolved) }, bar)) : null,
       issues.map((i) => this.issueCard(i)));
     // actions
     const stopped = st?.mission?.state === "STOPPED";
@@ -308,15 +376,24 @@ export class RecoveryApp {
     else if (!this.sending) this.els.working.textContent = "";
   }
 
+  private rail(i: any): HTMLElement {
+    const [done, active, halted] = progress(i);
+    return h("ol", { class: `rail${halted ? " halted" : ""}`, "aria-label": `Progress: ${done} of ${STEPS.length} steps` },
+      STEPS.map((s, k) => h("li", { class: k < done ? "done" : k === active ? (halted ? "stuck" : "active") : "" },
+        h("span", { class: "node", "aria-hidden": "true" }, k < done ? icon("check", "ico tiny") : null), h("span", { class: "step" }, s))));
+  }
+
   private issueCard(i: any): HTMLElement {
     const conf = i.confirmation;
     return h("article", { class: `card issue state-${i.state.toLowerCase()}`, "aria-label": KIND_TITLE[i.kind] ?? i.category },
-      h("div", { class: "issue-head" }, h("h3", null, KIND_TITLE[i.kind] ?? i.category),
+      h("div", { class: "issue-head" }, h("span", { class: "kind-ico" }, icon(KIND_ICON[i.kind] ?? "question")),
+        h("h3", null, KIND_TITLE[i.kind] ?? i.category),
         h("span", { class: `badge s-${i.state.toLowerCase()}` }, STATE_TEXT[i.state] ?? i.state)),
+      this.rail(i),
       i.reported_words ? h("p", { class: "said" }, h("span", { class: "label" }, "You reported: "), `“${i.reported_words}”`) : null,
-      i.observed_facts?.length ? h("div", { class: "facts" }, h("span", { class: "label" }, "Inspection observed on the laptop:"),
+      i.observed_facts?.length ? h("div", { class: "facts" }, h("span", { class: "eyebrow" }, icon("laptop", "ico inline"), " Observed on the laptop"),
         h("ul", null, i.observed_facts.map((f: string) => h("li", null, f)))) : null,
-      i.supported_explanation ? h("p", null, h("span", { class: "label" }, "Possible cause supported by that observation: "), i.supported_explanation) : null,
+      i.supported_explanation ? h("p", { class: "cause" }, h("span", { class: "label" }, "Possible cause supported by that observation: "), i.supported_explanation) : null,
       i.inspection_problems?.length ? h("p", { class: "warn-text" }, "Could not observe: ", i.inspection_problems.join("; "), ". This is not evidence that the setting is fine.") : null,
       i.state === "NEEDS_CLARIFICATION" && i.question ? h("div", { class: "question" }, h("p", { class: "q" }, i.question),
         h("div", { class: "options" }, (i.options ?? []).map((o: any) =>
@@ -326,22 +403,22 @@ export class RecoveryApp {
         h("p", { class: "q" }, conf?.question ?? "Does it work now?"),
         this.simulated() ? h("p", { class: "warn-text" }, SIMULATION_NOTE)
           : conf?.test_kind === "click" ? h("p", { class: "hint" }, "A green click-test target should be on the laptop screen.") : null,
-        h("div", { class: "options" },
-          h("button", { id: `res-${i.issue_id}-works`, type: "button", class: "primary", onclick: () => void this.result(i, "works") }, "Yes, it works"),
+        h("div", { class: "options three" },
+          h("button", { id: `res-${i.issue_id}-works`, type: "button", class: "approve", onclick: () => void this.result(i, "works") }, "Yes, it works"),
           h("button", { id: `res-${i.issue_id}-broken`, type: "button", class: "secondary", onclick: () => void this.result(i, "still_broken") }, "No, still broken"),
           h("button", { id: `res-${i.issue_id}-unsure`, type: "button", class: "secondary", onclick: () => void this.result(i, "unsure") }, "Not sure"))) : null,
       (i.operations?.length || i.person_results?.length) ? h("div", { class: "evidence" }, h("h4", null, "Evidence"),
         h("ul", null,
-          (i.operations ?? []).map((o: any) => h("li", null,
+          (i.operations ?? []).map((o: any) => h("li", { class: `ev ev-${(o.kind ?? "repair").toLowerCase()}` },
             h("span", { class: "label" }, `${o.kind === "TEST" ? "Test tone" : o.kind === "UNDO" ? "Undo" : "System result"} (${o.adapter ?? "unknown adapter"}, ${fmtTime(o.after_observed_at ?? o.finished_at)}): `),
             o.kind === "TEST" && o.outcome === "APPLIED_STATE_NOT_VERIFIED" ? "played (the playback call returned); only your answer shows whether it was audible" : (OUTCOME_TEXT[o.outcome] ?? o.outcome),
-            o.observed_before ? h("div", { class: "small" }, `Before: ${o.observed_before}`) : null,
-            o.observed_after ? h("div", { class: "small" }, `After: ${o.observed_after}`) : null,
-            o.workpad_text_unchanged === true ? h("div", { class: "small" }, "WorkPad's unsaved text: unchanged (same content fingerprint)") : null,
+            o.observed_before ? h("div", { class: "ba" }, h("span", { class: "tag before" }, "Before"), h("span", null, o.observed_before)) : null,
+            o.observed_after ? h("div", { class: "ba" }, h("span", { class: "tag after" }, "After"), h("span", null, o.observed_after)) : null,
+            o.workpad_text_unchanged === true ? h("div", { class: "small ok-text" }, icon("check", "ico inline"), " WorkPad's unsaved text: unchanged (same content fingerprint)") : null,
             o.workpad_text_unchanged === false ? h("div", { class: "small warn-text" }, "WorkPad's text fingerprint differs from before") : null,
             o.note || o.reconcile_note ? h("div", { class: "small" }, o.reconcile_note ?? o.note) : null,
             o.undo_available && i.state !== "STOPPED" ? h("button", { id: `undo-${o.operation_id}`, type: "button", class: "secondary small-btn", onclick: () => void this.undo(o) }, "Undo this change…") : null)),
-          (i.person_results ?? []).map((r: any) => h("li", null, h("span", { class: "label" }, "Your result: "),
+          (i.person_results ?? []).map((r: any) => h("li", { class: "ev ev-person" }, h("span", { class: "label" }, "Your result: "),
             r.result === "works" ? "works" : r.result === "still_broken" ? "still broken" : "not sure",
             h("span", { class: "small" }, ` (${r.source === "ui_button" ? "tapped" : "said, interpreted"} at ${fmtTime(r.at)})`))))) : null,
       i.next_manual_step ? h("p", { class: "next" }, h("span", { class: "label" }, "Next step: "), i.next_manual_step) : null,
@@ -352,11 +429,12 @@ export class RecoveryApp {
 
   private proposalCard(pr: any): HTMLElement {
     return h("div", { class: `proposal kind-${pr.kind.toLowerCase()}`, role: "group", "aria-label": PROPOSAL_KIND[pr.kind] },
-      h("p", { class: "label" }, `${PROPOSAL_KIND[pr.kind] ?? "Proposal"} (version ${pr.version})`),
+      h("div", { class: "proposal-head" }, icon(pr.kind === "TEST" ? "speaker" : "shield", "ico"),
+        h("span", { class: "label" }, `${PROPOSAL_KIND[pr.kind] ?? "Proposal"} · version ${pr.version}`),
+        h("span", { class: "timer", dataset: { expires: String(pr.expires_at) } }, `valid for ${secondsLeft(pr.expires_at)}`)),
       h("p", { class: "desc" }, pr.description),
       pr.kind === "TEST" && this.simulated() ? h("p", { class: "warn-text" }, SIMULATION_NOTE) : null,
-      h("p", { class: "small" }, h("span", { dataset: { expires: String(pr.expires_at) } }, `valid for ${secondsLeft(pr.expires_at)}`),
-        " · approves exactly this text, for this laptop, until Stop"),
+      h("p", { class: "small" }, "Approves exactly this text, for this laptop, until Stop."),
       pr.status === "PENDING" ? h("div", { class: "options" },
         h("button", { id: `approve-${pr.proposal_id}`, type: "button", class: "approve big", onclick: () => void this.approve(pr) }, pr.kind === "TEST" ? "Approve and play" : "Approve and apply"),
         h("button", { id: `decline-${pr.proposal_id}`, type: "button", class: "secondary", onclick: () => void this.post(`/api/proposals/${pr.proposal_id}/decline`, {}) }, "Decline")) :
@@ -370,6 +448,7 @@ export class RecoveryApp {
     this.voice.stopListening();
     this.sending = true;
     this.sendStarted = Date.now();
+    this.orb("thinking");
     this.els.send.setAttribute("disabled", "");
     const mode = this.voiceText && text === this.voiceText ? "voice" : "text";
     try {
@@ -382,18 +461,22 @@ export class RecoveryApp {
       this.els.working.textContent = (e as Error).message;
     } finally {
       this.sending = false;
+      this.orb("idle");
       this.els.send.removeAttribute("disabled");
       this.render();
     }
   }
 
   private async post(path: string, body: unknown): Promise<void> {
+    this.orb("thinking");
     try {
       const r = await api(path, { body });
       if (r.status) this.payload = r;
       this.render();
     } catch (e) {
       this.els.working.textContent = (e as Error).message;
+    } finally {
+      if (!this.voice.isListening) this.orb("idle");
     }
   }
 

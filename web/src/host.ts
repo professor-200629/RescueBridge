@@ -1,6 +1,7 @@
 // Laptop host console: pairing codes, accepting devices, revocation, helper/lab status, Stop all.
 import { api, setCsrf } from "./api";
 import { fmtTime, h, preserveFocus, replace, secondsLeft } from "./dom";
+import { icon } from "./icons";
 
 export async function startHost(root: HTMLElement): Promise<void> {
   const frag = new URLSearchParams(location.hash.slice(1));
@@ -24,8 +25,10 @@ export async function startHost(root: HTMLElement): Promise<void> {
   }
   setCsrf(sess.csrf_token);
   const body = h("div", { class: "host-body" });
-  replace(root, h("header", { class: "top" }, h("div", { class: "brand" }, h("span", { class: "logo", "aria-hidden": "true" }, "⛑"),
-    h("h1", null, `Host console — ${sess.host_name}`)), h("p", { class: "sim-label" }, "Runs on the laptop only. Pair your phone here while the laptop still works.")),
+  replace(root, h("header", { class: "top" }, h("div", { class: "top-inner host" }, h("div", { class: "brand" },
+    h("span", { class: "logo" }, icon("logo")),
+    h("div", null, h("h1", null, `Host console — ${sess.host_name}`),
+      h("p", { class: "sim-label" }, "Runs on the laptop only · pair your phone here while the laptop still works"))))),
     h("main", { id: "main", class: "host" }, body));
   let lastKey = "";
   const load = async () => {

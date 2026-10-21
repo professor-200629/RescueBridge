@@ -4,14 +4,54 @@
     {
       "name": "rescuebridge-fixture",
       "runtimeExecutable": "C:\\dev\\RescueBridge\\.venv\\Scripts\\python.exe",
-      "runtimeArgs": ["-m", "rescuebridge.cli", "--data-dir", "C:\\dev\\RescueBridge\\.smoke-data", "serve", "--fixture", "--fixture-scenario", "interview", "--provider", "rules"],
+      "runtimeArgs": [
+        "-m",
+        "rescuebridge.cli",
+        "--data-dir",
+        "C:\\dev\\RescueBridge\\.smoke-data",
+        "serve",
+        "--fixture",
+        "--fixture-scenario",
+        "interview",
+        "--provider",
+        "rules"
+      ],
       "port": 8740
     },
     {
       "name": "rescuebridge-real-readonly",
       "runtimeExecutable": "C:\\dev\\RescueBridge\\.venv\\Scripts\\python.exe",
-      "runtimeArgs": ["-m", "rescuebridge.cli", "--data-dir", "C:\\dev\\RescueBridge\\.smoke-real", "serve", "--provider", "rules"],
+      "runtimeArgs": [
+        "-m",
+        "rescuebridge.cli",
+        "--data-dir",
+        "C:\\dev\\RescueBridge\\.smoke-real",
+        "serve",
+        "--provider",
+        "rules"
+      ],
       "port": 8740
+    },
+    {
+      "name": "rescuebridge-design",
+      "runtimeExecutable": "C:\\dev\\RescueBridge\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": [
+        "-m",
+        "rescuebridge.cli",
+        "--data-dir",
+        "C:\\dev\\RescueBridge\\.smoke-design",
+        "serve",
+        "--fixture",
+        "--fixture-scenario",
+        "interview",
+        "--provider",
+        "rules"
+      ],
+      "env": {
+        "RB_BFF_PORT": "8750",
+        "RB_MCP_PORT": "8775"
+      },
+      "port": 8750
     }
   ]
 }
