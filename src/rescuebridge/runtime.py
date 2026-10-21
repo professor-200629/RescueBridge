@@ -11,7 +11,7 @@ import socket
 import sys
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -52,12 +52,83 @@ def lan_ip() -> str | None:
         return None
 
 
+def _process_alive(pid: int) -> bool:
+    """True if a process with this id is running. (On Windows os.kill(pid, 0) would TERMINATE it, so it is not used.)"""
+    if sys.platform != "win32":
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return False
+        return True
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    try:
+        code = wintypes.DWORD()
+        return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def write_host_link(settings: Settings, code: str) -> Path:
     from rescuebridge.host.pipe import write_private_file
 
     path = settings.data_dir / "host_link.txt"
     write_private_file(path, f"http://127.0.0.1:{settings.bff_port}/host#b={code}\n".encode())
     return path
+
+
+def open_host_console(settings: Settings, *, open_browser: bool = True,
+                      opener: Callable[[str], Any] | None = None) -> int:
+    """Launcher: a fresh one-time host-console link (10 minutes, works once, laptop only) opened in this laptop's
+    browser. The secret travels only in the URL fragment and is never printed."""
+    import json
+    import urllib.request
+    import webbrowser
+
+    from rescuebridge.domain.store import Store
+
+    start_hint = ("Start it first:  powershell -ExecutionPolicy Bypass -File scripts\\start.ps1   (add -Usb or -Lan for a "
+                  "phone; if you started it with -DataDir, pass the same -DataDir here)")
+    # The link must go into the database of the backend that is actually running from THIS data folder; another
+    # instance answering on the port would reject it. Never create a database here.
+    pid_file = settings.data_dir / "backend.pid"
+    try:
+        backend_pid = int(pid_file.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        backend_pid = 0
+    if not settings.db_path.exists() or not backend_pid or not _process_alive(backend_pid):
+        print(f"RescueBridge is not running with the data folder {settings.data_dir}, so there is no host console to open.\n"
+              + start_hint)
+        return 1
+    health = f"http://127.0.0.1:{settings.bff_port}/api/health"
+    try:
+        with urllib.request.urlopen(health, timeout=3) as r:  # noqa: S310 - fixed loopback URL
+            ok = json.loads(r.read() or b"{}").get("ok") is True
+    except (OSError, ValueError):
+        ok = False
+    if not ok:
+        print("RescueBridge is not running on this laptop, so there is no host console to open.\n" + start_hint)
+        return 1
+    store = Store(settings.db_path)
+    try:
+        path = write_host_link(settings, AuthService(store, settings).create_host_bootstrap())
+    finally:
+        store.close()
+    if open_browser:
+        (opener or webbrowser.open)(path.read_text(encoding="utf-8").strip())
+        print("Opened the RescueBridge host console in this laptop's browser (one-time link: works once, 10 minutes).")
+    else:
+        print(f"New one-time host-console link written to {path} (works once, 10 minutes, on this laptop only).")
+    return 0
 
 
 async def serve_backend(settings: Settings) -> None:

@@ -1,0 +1,632 @@
+{
+ "_note": "Recorded by scripts/make_preview_data.py from the fixture engine (Fixture Simulation). Replayed by the simulated preview; it never reaches a laptop.",
+ "fixture": "muted",
+ "utterance": "I can't hear anything",
+ "recorded_at": 1792596410874,
+ "initial": {
+  "status": {
+   "adapter": "Fixture Simulation",
+   "helper_reachable": true,
+   "mission": null,
+   "issues": []
+  },
+  "messages": [],
+  "busy_since": null,
+  "helper": {
+   "reachable": true,
+   "mode": "fixture_simulation"
+  },
+  "server_time": 1792596410874,
+  "snapshot": {
+   "seq": 1,
+   "device_id": "preview-device",
+   "mission_id": null
+  }
+ },
+ "steps": [
+  {
+   "path": "/api/utterance",
+   "response": {
+    "reply": {
+     "id": "msg_8RxeXmXCTotq",
+     "mission_id": "msn_RfoaRqKMCsG0",
+     "device_id": "preview-device",
+     "role": "assistant",
+     "text": "Your speaker is muted. I can fix it: Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Tap Approve if that's right.",
+     "input_mode": null,
+     "created_at": 1792596410946,
+     "meta": {
+      "run_id": "run_uiDM5RBzgmYS",
+      "stop_reason": "completed",
+      "total_ms": 66
+     }
+    },
+    "status": {
+     "adapter": "Fixture Simulation",
+     "helper_reachable": true,
+     "mission": {
+      "mission_id": "msn_RfoaRqKMCsG0",
+      "goal": "I can't hear anything",
+      "state": "ACTIVE",
+      "stop_state": "NONE",
+      "stop_detail": null,
+      "created_at": 1792596410912,
+      "server_summary": "0 of 1 issue(s) confirmed resolved; 1 still open."
+     },
+     "issues": [
+      {
+       "issue_id": "iss_oGNOyodPv3nC",
+       "kind": "AUDIO_OUTPUT",
+       "category": "no_sound",
+       "state": "PROPOSED",
+       "reported_words": "I can't hear anything",
+       "observed_facts": [
+        "Default playback device 'Speakers (Fixture Audio)' is MUTED, volume 24%.",
+        "Other active outputs: 'Headset (Fixture Bluetooth)' (unmuted, 50%)"
+       ],
+       "supported_explanation": "The default playback device is muted, which would silence most apps on it.",
+       "inspection_problems": null,
+       "question": null,
+       "options": null,
+       "confirmation": null,
+       "next_manual_step": null,
+       "open_proposals": [
+        {
+         "proposal_id": "prop_ShU27lBgT2p5",
+         "issue_id": "iss_oGNOyodPv3nC",
+         "kind": "REPAIR",
+         "version": 1,
+         "action": "SET_AUDIO_ENDPOINT",
+         "description": "Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Only this device is changed. Afterwards you can play a short test tone to check whether you can actually hear it. Undo is available.",
+         "status": "PENDING",
+         "status_reason": null,
+         "expires_at": 1792596710927,
+         "target": {
+          "endpoint_name": "Speakers (Fixture Audio)"
+         },
+         "basis_observation_ids": [
+          "obs_ErZDl8ypbUm6"
+         ],
+         "requires_approval_on_paired_device": true,
+         "digest": "09923552dad28af144cd82df93a2f820373ffc69abe1138fdb35cc28868407a7",
+         "params": {
+          "endpoint_id": "{0.0.0.00000000}.{fixture-speakers-0001}",
+          "expect_muted": true,
+          "expect_volume_scalar": 0.24,
+          "mute": false,
+          "volume_scalar": null
+         }
+        }
+       ],
+       "operations": [],
+       "person_results": []
+      }
+     ]
+    },
+    "messages": [
+     {
+      "id": "msg_dtiUzGJyzCx1",
+      "role": "user",
+      "text": "I can't hear anything",
+      "input_mode": "text",
+      "created_at": 1792596410876,
+      "meta": null
+     },
+     {
+      "id": "msg_8RxeXmXCTotq",
+      "role": "assistant",
+      "text": "Your speaker is muted. I can fix it: Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Tap Approve if that's right.",
+      "input_mode": null,
+      "created_at": 1792596410946,
+      "meta": {
+       "run_id": "run_uiDM5RBzgmYS",
+       "stop_reason": "completed",
+       "total_ms": 66
+      }
+     }
+    ],
+    "busy_since": null,
+    "helper": {
+     "reachable": true,
+     "mode": "fixture_simulation"
+    },
+    "server_time": 1792596410949,
+    "snapshot": {
+     "seq": 9,
+     "device_id": "preview-device",
+     "mission_id": "msn_RfoaRqKMCsG0"
+    }
+   }
+  },
+  {
+   "path": "/api/proposals/prop_ShU27lBgT2p5/approve",
+   "response": {
+    "reply": {
+     "id": "msg_gx3tGgKrAlmV",
+     "mission_id": "msn_RfoaRqKMCsG0",
+     "device_id": "preview-device",
+     "role": "assistant",
+     "text": "Done, and observed: default 'Speakers (Fixture Audio)': unmuted, volume 24%. Approve the test tone, then tell me: did you hear it?",
+     "input_mode": null,
+     "created_at": 1792596411005,
+     "meta": {
+      "after_approval": "prop_ShU27lBgT2p5"
+     }
+    },
+    "status": {
+     "adapter": "Fixture Simulation",
+     "helper_reachable": true,
+     "mission": {
+      "mission_id": "msn_RfoaRqKMCsG0",
+      "goal": "I can't hear anything",
+      "state": "ACTIVE",
+      "stop_state": "NONE",
+      "stop_detail": null,
+      "created_at": 1792596410912,
+      "server_summary": "0 of 1 issue(s) confirmed resolved; 1 still open."
+     },
+     "issues": [
+      {
+       "issue_id": "iss_oGNOyodPv3nC",
+       "kind": "AUDIO_OUTPUT",
+       "category": "no_sound",
+       "state": "AWAITING_USER_CONFIRMATION",
+       "reported_words": "I can't hear anything",
+       "observed_facts": [
+        "Default playback device 'Speakers (Fixture Audio)' is MUTED, volume 24%.",
+        "Other active outputs: 'Headset (Fixture Bluetooth)' (unmuted, 50%)"
+       ],
+       "supported_explanation": "The default playback device is muted, which would silence most apps on it.",
+       "inspection_problems": null,
+       "question": null,
+       "options": null,
+       "confirmation": {
+        "question": "Approve the test tone, then tell me: did you hear it?",
+        "test_kind": "tone"
+       },
+       "next_manual_step": null,
+       "open_proposals": [
+        {
+         "proposal_id": "prop_6EQ2g1m9Xrbq",
+         "issue_id": "iss_oGNOyodPv3nC",
+         "kind": "TEST",
+         "version": 2,
+         "action": "PLAY_TEST_TONE",
+         "description": "Play a 1.2-second test tone (660 Hz, moderate level) on 'Speakers (Fixture Audio)' at its current 24% volume. Nothing else changes.",
+         "status": "PENDING",
+         "status_reason": null,
+         "expires_at": 1792596710995,
+         "target": {
+          "endpoint_name": "Speakers (Fixture Audio)"
+         },
+         "basis_observation_ids": [
+          "obs_jhf762nOy4jK"
+         ],
+         "requires_approval_on_paired_device": true,
+         "digest": "af2c64bffbeaf931e07068775dbaa1e2a2c39770e2a4d709889bbbc4194de881",
+         "params": {
+          "duration_ms": 1200,
+          "endpoint_id": "{0.0.0.00000000}.{fixture-speakers-0001}",
+          "frequency_hz": 660
+         }
+        }
+       ],
+       "operations": [
+        {
+         "operation_id": "op_rezWFnR52yPB",
+         "proposal_id": "prop_ShU27lBgT2p5",
+         "kind": "REPAIR",
+         "action": "SET_AUDIO_ENDPOINT",
+         "outcome": "APPLIED_STATE_VERIFIED",
+         "phase": "FINISHED",
+         "adapter": "Fixture Simulation",
+         "intent_at": 1792596410972,
+         "finished_at": 1792596410977,
+         "observed_before": "default 'Speakers (Fixture Audio)': muted, volume 24%",
+         "observed_after": "default 'Speakers (Fixture Audio)': unmuted, volume 24%",
+         "after_observed_at": 1792596410975,
+         "workpad_text_unchanged": null,
+         "note": null,
+         "reconcile_note": null,
+         "error": null,
+         "undo_available": true
+        }
+       ],
+       "person_results": []
+      }
+     ]
+    },
+    "messages": [
+     {
+      "id": "msg_dtiUzGJyzCx1",
+      "role": "user",
+      "text": "I can't hear anything",
+      "input_mode": "text",
+      "created_at": 1792596410876,
+      "meta": null
+     },
+     {
+      "id": "msg_8RxeXmXCTotq",
+      "role": "assistant",
+      "text": "Your speaker is muted. I can fix it: Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Tap Approve if that's right.",
+      "input_mode": null,
+      "created_at": 1792596410946,
+      "meta": {
+       "run_id": "run_uiDM5RBzgmYS",
+       "stop_reason": "completed",
+       "total_ms": 66
+      }
+     },
+     {
+      "id": "msg_vWDjQo6Tgf5N",
+      "role": "system",
+      "text": "You approved: Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Only this device is changed. Afterwards you can play a short test tone to check whether you can actually hear it. Undo is available.",
+      "input_mode": "button",
+      "created_at": 1792596410953,
+      "meta": null
+     },
+     {
+      "id": "msg_gx3tGgKrAlmV",
+      "role": "assistant",
+      "text": "Done, and observed: default 'Speakers (Fixture Audio)': unmuted, volume 24%. Approve the test tone, then tell me: did you hear it?",
+      "input_mode": null,
+      "created_at": 1792596411005,
+      "meta": {
+       "after_approval": "prop_ShU27lBgT2p5"
+      }
+     }
+    ],
+    "busy_since": null,
+    "helper": {
+     "reachable": true,
+     "mode": "fixture_simulation"
+    },
+    "server_time": 1792596411007,
+    "snapshot": {
+     "seq": 23,
+     "device_id": "preview-device",
+     "mission_id": "msn_RfoaRqKMCsG0"
+    }
+   }
+  },
+  {
+   "path": "/api/proposals/prop_6EQ2g1m9Xrbq/approve",
+   "response": {
+    "reply": {
+     "id": "msg_w9z2q5436v7Y",
+     "mission_id": "msn_RfoaRqKMCsG0",
+     "device_id": "preview-device",
+     "role": "assistant",
+     "text": "The test tone was played (the playback call returned). Only you can tell whether it was audible. Did you hear the tone?",
+     "input_mode": null,
+     "created_at": 1792596411044,
+     "meta": {
+      "after_approval": "prop_6EQ2g1m9Xrbq"
+     }
+    },
+    "status": {
+     "adapter": "Fixture Simulation",
+     "helper_reachable": true,
+     "mission": {
+      "mission_id": "msn_RfoaRqKMCsG0",
+      "goal": "I can't hear anything",
+      "state": "ACTIVE",
+      "stop_state": "NONE",
+      "stop_detail": null,
+      "created_at": 1792596410912,
+      "server_summary": "0 of 1 issue(s) confirmed resolved; 1 still open."
+     },
+     "issues": [
+      {
+       "issue_id": "iss_oGNOyodPv3nC",
+       "kind": "AUDIO_OUTPUT",
+       "category": "no_sound",
+       "state": "AWAITING_USER_CONFIRMATION",
+       "reported_words": "I can't hear anything",
+       "observed_facts": [
+        "Default playback device 'Speakers (Fixture Audio)' is MUTED, volume 24%.",
+        "Other active outputs: 'Headset (Fixture Bluetooth)' (unmuted, 50%)"
+       ],
+       "supported_explanation": "The default playback device is muted, which would silence most apps on it.",
+       "inspection_problems": null,
+       "question": null,
+       "options": null,
+       "confirmation": {
+        "question": "Approve the test tone, then tell me: did you hear it?",
+        "test_kind": "tone"
+       },
+       "next_manual_step": null,
+       "open_proposals": [],
+       "operations": [
+        {
+         "operation_id": "op_rezWFnR52yPB",
+         "proposal_id": "prop_ShU27lBgT2p5",
+         "kind": "REPAIR",
+         "action": "SET_AUDIO_ENDPOINT",
+         "outcome": "APPLIED_STATE_VERIFIED",
+         "phase": "FINISHED",
+         "adapter": "Fixture Simulation",
+         "intent_at": 1792596410972,
+         "finished_at": 1792596410977,
+         "observed_before": "default 'Speakers (Fixture Audio)': muted, volume 24%",
+         "observed_after": "default 'Speakers (Fixture Audio)': unmuted, volume 24%",
+         "after_observed_at": 1792596410975,
+         "workpad_text_unchanged": null,
+         "note": null,
+         "reconcile_note": null,
+         "error": null,
+         "undo_available": true
+        },
+        {
+         "operation_id": "op_Tw4scVemNNVY",
+         "proposal_id": "prop_6EQ2g1m9Xrbq",
+         "kind": "TEST",
+         "action": "PLAY_TEST_TONE",
+         "outcome": "APPLIED_STATE_NOT_VERIFIED",
+         "phase": "FINISHED",
+         "adapter": "Fixture Simulation",
+         "intent_at": 1792596411026,
+         "finished_at": 1792596411031,
+         "observed_before": "default 'Speakers (Fixture Audio)': unmuted, volume 24%",
+         "observed_after": "default 'Speakers (Fixture Audio)': unmuted, volume 24%",
+         "after_observed_at": 1792596411029,
+         "workpad_text_unchanged": null,
+         "note": "Tone playback call returned. Whether it was audible needs the person's answer.",
+         "reconcile_note": null,
+         "error": null,
+         "undo_available": false
+        }
+       ],
+       "person_results": []
+      }
+     ]
+    },
+    "messages": [
+     {
+      "id": "msg_dtiUzGJyzCx1",
+      "role": "user",
+      "text": "I can't hear anything",
+      "input_mode": "text",
+      "created_at": 1792596410876,
+      "meta": null
+     },
+     {
+      "id": "msg_8RxeXmXCTotq",
+      "role": "assistant",
+      "text": "Your speaker is muted. I can fix it: Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Tap Approve if that's right.",
+      "input_mode": null,
+      "created_at": 1792596410946,
+      "meta": {
+       "run_id": "run_uiDM5RBzgmYS",
+       "stop_reason": "completed",
+       "total_ms": 66
+      }
+     },
+     {
+      "id": "msg_vWDjQo6Tgf5N",
+      "role": "system",
+      "text": "You approved: Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Only this device is changed. Afterwards you can play a short test tone to check whether you can actually hear it. Undo is available.",
+      "input_mode": "button",
+      "created_at": 1792596410953,
+      "meta": null
+     },
+     {
+      "id": "msg_gx3tGgKrAlmV",
+      "role": "assistant",
+      "text": "Done, and observed: default 'Speakers (Fixture Audio)': unmuted, volume 24%. Approve the test tone, then tell me: did you hear it?",
+      "input_mode": null,
+      "created_at": 1792596411005,
+      "meta": {
+       "after_approval": "prop_ShU27lBgT2p5"
+      }
+     },
+     {
+      "id": "msg_4Ev4iCXoeCgY",
+      "role": "system",
+      "text": "You approved: Play a 1.2-second test tone (660 Hz, moderate level) on 'Speakers (Fixture Audio)' at its current 24% volume. Nothing else changes.",
+      "input_mode": "button",
+      "created_at": 1792596411010,
+      "meta": null
+     },
+     {
+      "id": "msg_w9z2q5436v7Y",
+      "role": "assistant",
+      "text": "The test tone was played (the playback call returned). Only you can tell whether it was audible. Did you hear the tone?",
+      "input_mode": null,
+      "created_at": 1792596411044,
+      "meta": {
+       "after_approval": "prop_6EQ2g1m9Xrbq"
+      }
+     }
+    ],
+    "busy_since": null,
+    "helper": {
+     "reachable": true,
+     "mode": "fixture_simulation"
+    },
+    "server_time": 1792596411047,
+    "snapshot": {
+     "seq": 32,
+     "device_id": "preview-device",
+     "mission_id": "msn_RfoaRqKMCsG0"
+    }
+   }
+  },
+  {
+   "path": "/api/issues/iss_oGNOyodPv3nC/result",
+   "response": {
+    "reply": {
+     "id": "msg_lo9RZhOKwZbb",
+     "mission_id": "msn_RfoaRqKMCsG0",
+     "device_id": "preview-device",
+     "role": "assistant",
+     "text": "Thanks, I've marked that as resolved because you confirmed it.",
+     "input_mode": null,
+     "created_at": 1792596411055,
+     "meta": null
+    },
+    "status": {
+     "adapter": "Fixture Simulation",
+     "helper_reachable": true,
+     "mission": {
+      "mission_id": "msn_RfoaRqKMCsG0",
+      "goal": "I can't hear anything",
+      "state": "ACTIVE",
+      "stop_state": "NONE",
+      "stop_detail": null,
+      "created_at": 1792596410912,
+      "server_summary": "All 1 reported issue(s) confirmed resolved by the person."
+     },
+     "issues": [
+      {
+       "issue_id": "iss_oGNOyodPv3nC",
+       "kind": "AUDIO_OUTPUT",
+       "category": "no_sound",
+       "state": "RESOLVED",
+       "reported_words": "I can't hear anything",
+       "observed_facts": [
+        "Default playback device 'Speakers (Fixture Audio)' is MUTED, volume 24%.",
+        "Other active outputs: 'Headset (Fixture Bluetooth)' (unmuted, 50%)"
+       ],
+       "supported_explanation": "The default playback device is muted, which would silence most apps on it.",
+       "inspection_problems": null,
+       "question": null,
+       "options": null,
+       "confirmation": {
+        "question": "Approve the test tone, then tell me: did you hear it?",
+        "test_kind": "tone"
+       },
+       "next_manual_step": null,
+       "open_proposals": [],
+       "operations": [
+        {
+         "operation_id": "op_rezWFnR52yPB",
+         "proposal_id": "prop_ShU27lBgT2p5",
+         "kind": "REPAIR",
+         "action": "SET_AUDIO_ENDPOINT",
+         "outcome": "APPLIED_STATE_VERIFIED",
+         "phase": "FINISHED",
+         "adapter": "Fixture Simulation",
+         "intent_at": 1792596410972,
+         "finished_at": 1792596410977,
+         "observed_before": "default 'Speakers (Fixture Audio)': muted, volume 24%",
+         "observed_after": "default 'Speakers (Fixture Audio)': unmuted, volume 24%",
+         "after_observed_at": 1792596410975,
+         "workpad_text_unchanged": null,
+         "note": null,
+         "reconcile_note": null,
+         "error": null,
+         "undo_available": true
+        },
+        {
+         "operation_id": "op_Tw4scVemNNVY",
+         "proposal_id": "prop_6EQ2g1m9Xrbq",
+         "kind": "TEST",
+         "action": "PLAY_TEST_TONE",
+         "outcome": "APPLIED_STATE_NOT_VERIFIED",
+         "phase": "FINISHED",
+         "adapter": "Fixture Simulation",
+         "intent_at": 1792596411026,
+         "finished_at": 1792596411031,
+         "observed_before": "default 'Speakers (Fixture Audio)': unmuted, volume 24%",
+         "observed_after": "default 'Speakers (Fixture Audio)': unmuted, volume 24%",
+         "after_observed_at": 1792596411029,
+         "workpad_text_unchanged": null,
+         "note": "Tone playback call returned. Whether it was audible needs the person's answer.",
+         "reconcile_note": null,
+         "error": null,
+         "undo_available": false
+        }
+       ],
+       "person_results": [
+        {
+         "result": "works",
+         "source": "ui_button",
+         "test_kind": "tone",
+         "at": 1792596411052
+        }
+       ]
+      }
+     ]
+    },
+    "messages": [
+     {
+      "id": "msg_dtiUzGJyzCx1",
+      "role": "user",
+      "text": "I can't hear anything",
+      "input_mode": "text",
+      "created_at": 1792596410876,
+      "meta": null
+     },
+     {
+      "id": "msg_8RxeXmXCTotq",
+      "role": "assistant",
+      "text": "Your speaker is muted. I can fix it: Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Tap Approve if that's right.",
+      "input_mode": null,
+      "created_at": 1792596410946,
+      "meta": {
+       "run_id": "run_uiDM5RBzgmYS",
+       "stop_reason": "completed",
+       "total_ms": 66
+      }
+     },
+     {
+      "id": "msg_vWDjQo6Tgf5N",
+      "role": "system",
+      "text": "You approved: Unmute 'Speakers (Fixture Audio)' and leave its volume at 24%. Only this device is changed. Afterwards you can play a short test tone to check whether you can actually hear it. Undo is available.",
+      "input_mode": "button",
+      "created_at": 1792596410953,
+      "meta": null
+     },
+     {
+      "id": "msg_gx3tGgKrAlmV",
+      "role": "assistant",
+      "text": "Done, and observed: default 'Speakers (Fixture Audio)': unmuted, volume 24%. Approve the test tone, then tell me: did you hear it?",
+      "input_mode": null,
+      "created_at": 1792596411005,
+      "meta": {
+       "after_approval": "prop_ShU27lBgT2p5"
+      }
+     },
+     {
+      "id": "msg_4Ev4iCXoeCgY",
+      "role": "system",
+      "text": "You approved: Play a 1.2-second test tone (660 Hz, moderate level) on 'Speakers (Fixture Audio)' at its current 24% volume. Nothing else changes.",
+      "input_mode": "button",
+      "created_at": 1792596411010,
+      "meta": null
+     },
+     {
+      "id": "msg_w9z2q5436v7Y",
+      "role": "assistant",
+      "text": "The test tone was played (the playback call returned). Only you can tell whether it was audible. Did you hear the tone?",
+      "input_mode": null,
+      "created_at": 1792596411044,
+      "meta": {
+       "after_approval": "prop_6EQ2g1m9Xrbq"
+      }
+     },
+     {
+      "id": "msg_lo9RZhOKwZbb",
+      "role": "assistant",
+      "text": "Thanks, I've marked that as resolved because you confirmed it.",
+      "input_mode": null,
+      "created_at": 1792596411055,
+      "meta": null
+     }
+    ],
+    "busy_since": null,
+    "helper": {
+     "reachable": true,
+     "mode": "fixture_simulation"
+    },
+    "server_time": 1792596411056,
+    "snapshot": {
+     "seq": 35,
+     "device_id": "preview-device",
+     "mission_id": "msn_RfoaRqKMCsG0"
+    }
+   }
+  }
+ ]
+}

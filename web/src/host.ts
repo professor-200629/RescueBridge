@@ -1,7 +1,33 @@
 // Laptop host console: pairing codes, accepting devices, revocation, helper/lab status, Stop all.
-import { api, setCsrf } from "./api";
+import { api, ApiError, setCsrf } from "./api";
 import { fmtTime, h, preserveFocus, replace, secondsLeft } from "./dom";
 import { icon } from "./icons";
+
+const LAUNCHER = "powershell -ExecutionPolicy Bypass -File scripts\\host-console.ps1";
+
+/** Where the host console comes from, and what to do now. Shown instead of the console when there is no session. */
+function hostGate(root: HTMLElement, problem: string | null): void {
+  // A fresh link opened into this already-open tab changes only the fragment: load it properly.
+  window.addEventListener("hashchange", () => { if (location.hash.startsWith("#b=")) location.reload(); }, { once: true });
+  replace(root, h("main", { id: "main", class: "host" }, h("div", { class: "card guide" },
+    h("h1", null, "RescueBridge host console"),
+    problem ? h("p", { class: "field-error", role: "alert" }, problem) : null,
+    h("p", null, "The host console runs only on the laptop being rescued. It opens through a one-time link (works once, "
+      + "expires after 10 minutes) that RescueBridge creates on this laptop, so nobody else can open it."),
+    h("ol", { class: "steps" },
+      h("li", null, "On this laptop, open PowerShell in the RescueBridge folder."),
+      h("li", null, "Run ", h("code", { class: "cmd" }, LAUNCHER), ". It opens this console in your browser."),
+      h("li", null, "Not running yet? Start it first: ", h("code", { class: "cmd" }, "powershell -ExecutionPolicy Bypass -File scripts\\start.ps1 -Usb"),
+        " (phone on a USB cable) or ", h("code", { class: "cmd" }, "-Lan"), " (same Wi-Fi).")),
+    h("p", { class: "hint" }, "On a phone? You do not need this page: open the RescueBridge address on the phone and enter the pairing code shown here on the laptop."))));
+}
+
+const BOOTSTRAP_ERRORS: Record<string, string> = {
+  BOOTSTRAP_EXPIRED: "That host-console link expired (links last 10 minutes).",
+  BOOTSTRAP_USED: "That host-console link was already used (each link works once).",
+  BAD_BOOTSTRAP: "That host-console link is not valid.",
+  LOCAL_ONLY: "The host console can only be opened on the laptop itself, not from another device.",
+};
 
 export async function startHost(root: HTMLElement): Promise<void> {
   const frag = new URLSearchParams(location.hash.slice(1));
@@ -9,18 +35,22 @@ export async function startHost(root: HTMLElement): Promise<void> {
   if (location.hash) history.replaceState(null, "", location.pathname);
   if (boot) {
     try {
-      await api("/api/host/bootstrap", { body: { code: boot } });
+      await api("/api/host/bootstrap", { body: { code: boot }, timeoutMs: 10000 });
     } catch (e) {
-      replace(root, h("main", { id: "main", class: "host" }, h("div", { class: "card" }, h("h1", null, "RescueBridge host console"),
-        h("p", null, (e as Error).message))));
+      const code = e instanceof ApiError ? e.code : "";
+      hostGate(root, (BOOTSTRAP_ERRORS[code] ?? `Could not open the host console: ${(e as Error).message}`) + " Open a fresh link as shown below.");
       return;
     }
   }
-  const sess = await api("/api/session");
+  let sess: any;
+  try {
+    sess = await api("/api/session", { timeoutMs: 10000 });
+  } catch (e) {
+    hostGate(root, `RescueBridge is not answering on this laptop (${(e as Error).message}). Start it as shown below.`);
+    return;
+  }
   if (!sess.paired || sess.role !== "host_console") {
-    replace(root, h("main", { id: "main", class: "host" }, h("div", { class: "card" }, h("h1", null, "RescueBridge host console"),
-      h("p", null, "Open the host console with the one-time link from scripts\\start.ps1 (or run `rescuebridge host-link`). "
-        + "The link only works on this laptop."))));
+    hostGate(root, null);
     return;
   }
   setCsrf(sess.csrf_token);
@@ -62,7 +92,8 @@ function render(body: HTMLElement, s: any, reload: () => Promise<void>): void {
     h("section", { class: "card" }, h("h2", null, "Status"),
       h("ul", null,
         h("li", null, "Windows helper: ", helper.reachable ? h("span", { class: "dot ok" }, `● running (${helper.mode}, pid ${helper.pid})`)
-          : h("span", { class: "dot bad" }, `● not reachable — ${helper.error ?? ""}`)),
+          : h("span", { class: "dot bad" }, `● not reachable — ${helper.error ?? ""}. Nothing can be checked or changed until it runs: `
+            + "stop RescueBridge (scripts\\stop.ps1) and start it again (scripts\\start.ps1).")),
         h("li", null, `Host adapter: ${s.host_adapter} · Language: ${s.model_provider} · Permission revision: ${s.revision}`),
         h("li", null, s.lan_url ? `Phone address (LAN HTTPS): ${s.lan_url}` : "LAN mode off (Wi-Fi phones cannot connect; start with -Lan for that)."),
         s.usb ? h("li", null, "Phone by USB cable: ", s.usb.state === "linked"

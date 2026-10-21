@@ -257,6 +257,32 @@ the owner reported the new design showing at ~18:56; the session database shows 
   text. Fixture evaluation unchanged (24/24, held-out 2/6, 0 incorrect changes, 0 false claims). 86 tests pass.
 - Not done: no third-party MCP Apps host (e.g. a desktop AI client) was used to render the card.
 
+### 5i. Review repairs (2026-10-21 night): reproduced first, then fixed
+
+Each defect was reproduced in real Edge (Playwright, fixture backend) **before** the fix; the same tests pass
+after it (`tests/test_browser_repairs.py`, 9 tests; `tests/test_repairs_backend.py`, 8 tests).
+
+| Finding | Reproduction (before) | Fix and check (after) |
+|---|---|---|
+| Send error overwritten | a failed Send left the status line at `''` (the message was set, then cleared in the same `render()`) | dedicated `role="alert"` box with Retry/Dismiss, separate from progress; survives 2 polling cycles; transcript kept; Retry succeeds. Lost connection after delivery: state checked, message **not** resent, no Retry offered |
+| First reply not spoken | speech substitute recorded nothing for the first reply | history (first snapshot) captioned, never spoken; each reply id spoken once across Send + polling; nothing replayed after reload; toggle off respected |
+| Stale snapshot after Stop | an ACTIVE snapshot fetched before Stop and delivered after it brought back an **Approve** button and removed Continue | `state_seq` (SQLite triggers on 8 tables) in every payload with device + mission; client keeps only seq ≥ last shown; polls never overlap; Stop CONFIRMED only on the helper fence ack, HELPER_UNREACHABLE (unknown) without it |
+| Duplicate approval / lost answer | (new test) | approval control disabled on tap; double tap → 1 request; an approval whose answer was lost shows "may or may not have happened", reconciles from the server ("Change made and the new state was observed"), sends nothing again; 1 OS call |
+| Empty pairing code reached the server | an empty code produced a `/api/pair/request` call | client: exactly 8 digits after removing spaces/dashes, inline `aria-invalid` error, no request; server: `MALFORMED_CODE` (not counted as a guess; 9 digits no longer truncated to 8), `CODE_EXPIRED`, `NO_ACTIVE_CODE`, `WRONG_CODE`, `RATE_LIMITED` |
+| First-run dead end | `/host` without a link only said "use the one-time link" | start page: Connect this phone / Set up this laptop / How this phone reaches the laptop (127.0.0.1 explained); `scripts\host-console.ps1` launcher; host page explains the launcher; link errors say expired / used / invalid / laptop-only; an already-open guide tab picks up a new link |
+| Launcher wrote a link into the wrong database | (found while testing the live instance: a wrong `-DataDir` still passed the port health check and created a new DB) | the folder's own `backend.pid` must be a live process (checked with `OpenProcess`, not `os.kill`); no DB is created |
+| Judge preview | — | "Try a simulated recovery": recorded from the fixture engine, replayed in the browser; the test walks the whole flow and asserts **zero** `/api` and `/mcp` requests |
+
+Also checked: 20 protected endpoints return 401/403 without a session; Tab reaches every control on the pairing,
+recovery and preview screens, no positive `tabindex`, visible focus, no horizontal overflow at 390 px. Full suite:
+103 passed; ruff, mypy, tsc clean; evaluation unchanged (fixture 24/24, held-out 2/6, 0 incorrect, 0 false
+claims; trigger overhead measured at ≤ 0.1 ms per write). The running instance at `http://127.0.0.1:8740/`
+(real mode, restarted) serves `assets/index-91_L_oPt.js`, byte-identical to `web/dist`, and answers an empty code
+with `MALFORMED_CODE`.
+
+Not covered: real microphone or audio output for the new speech logic (substitute only); the redesigned flows on
+the owner's phone after these fixes; a screen reader; real Windows changes (none were made).
+
 ## 6. Not run (unverified)
 
 - **Real Windows changes**: unmute and the test tone (5e) and a WorkPad window move under the live lab (5f)

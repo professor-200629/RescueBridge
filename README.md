@@ -76,6 +76,18 @@ powershell -ExecutionPolicy Bypass -File scripts\stop.ps1
 shown address and enter the code (or scan the QR) → back on the laptop **Accept this device**. The phone
 now shows the recovery screen.
 
+**Open the host console again later** (for example to pair another phone): run
+`powershell -ExecutionPolicy Bypass -File scripts\host-console.ps1` (add `-DataDir <folder>` if you started with
+one). It checks that RescueBridge is running from that data folder, creates a fresh one-time link (works once,
+10 minutes, laptop only) and opens it in this laptop's browser; the secret is never printed. A phone that opens
+the app without being paired sees **Connect this phone**, **Set up this laptop**, and **How this phone reaches
+the laptop** (USB: `http://127.0.0.1:8740` — 127.0.0.1 always means "the device that opens it"; Wi-Fi: the
+`https://…:8743` LAN address).
+
+**Just looking?** The unpaired start page has **Try a simulated recovery**: one conversation recorded from the
+fixture engine (`scripts\make_preview_data.py`), replayed entirely in the browser. It makes no request to any
+laptop, pairs nothing, and every screen is labelled as a simulated preview.
+
 Equivalent manual commands (two terminals):
 
 ```powershell
@@ -161,7 +173,9 @@ mouse/audio/window state without changing it.
 | Symptom | Check |
 |---|---|
 | "Laptop helper: NOT reachable" | The helper window was closed or crashed: `scripts\stop.ps1`, then `scripts\start.ps1`. Stop is then recorded with status *unknown*, never "stopped". |
-| Host console says the link is invalid | One-time link already used or older than 10 minutes: `.venv\Scripts\python.exe -m rescuebridge.cli host-link`, then open the URL stored in the printed file. |
+| Host console says the link expired / was already used / is not valid | Links work once and last 10 minutes. Run `scripts\host-console.ps1` (same `-DataDir` as `start.ps1`) for a fresh one. |
+| Phone shows "Cannot reach the laptop" | USB: cable in, USB debugging on, RescueBridge started with `-Usb` (re-link: `rescuebridge.cli usb-link`). Wi-Fi: same network and the LAN address. |
+| A red message stays under Send | That is deliberate: it stays until you tap Retry or Dismiss. After a lost connection RescueBridge first checks whether your message or approval already reached the laptop and never sends a change twice. |
 | Scanned QR code / link does not open on the phone | Started without `-Usb` or `-Lan`, so the QR points at `127.0.0.1` (the phone itself). Plug in the cable and restart with `-Usb`, or use `-Lan`. |
 | Host console: "Phone by USB cable: not linked" | Follow the message: cable must carry data, USB debugging on, tap **Allow** on the phone, only one phone attached. `doctor` shows the adb state. |
 | Phone cannot open the LAN address | Same Wi-Fi? Guest network isolation? Windows network prompt answered "Private"? `doctor` shows the LAN address. |

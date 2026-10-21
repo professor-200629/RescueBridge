@@ -151,7 +151,19 @@ CREATE INDEX IF NOT EXISTS idx_obs_mission ON observations(mission_id);
 CREATE INDEX IF NOT EXISTS idx_prop_issue ON proposals(issue_id);
 CREATE INDEX IF NOT EXISTS idx_ops_issue ON operations(issue_id);
 CREATE INDEX IF NOT EXISTS idx_msgs_mission ON messages(mission_id);
+
+-- Authoritative, monotonic snapshot version. Every write to state a device can see bumps it, whichever process
+-- or code path writes (triggers), so a client can reject a snapshot older than one it already showed.
+CREATE TABLE IF NOT EXISTS state_seq (id INTEGER PRIMARY KEY CHECK (id = 1), seq INTEGER NOT NULL);
+INSERT OR IGNORE INTO state_seq(id, seq) VALUES (1, 0);
 """
+
+_SEQ_TABLES = ("hosts", "missions", "issues", "proposals", "approvals", "operations", "user_results", "messages")
+# Built only from the fixed identifiers above (no input reaches this SQL).
+SEQ_TRIGGERS = "".join(
+    f"CREATE TRIGGER IF NOT EXISTS seq_{t}_{op.lower()} AFTER {op} ON {t} "  # noqa: S608 - fixed identifiers
+    "BEGIN UPDATE state_seq SET seq = seq + 1 WHERE id = 1; END; "
+    for t in _SEQ_TABLES for op in ("INSERT", "UPDATE", "DELETE"))
 
 
 def _encode(col: str, value: Any) -> Any:
@@ -188,9 +200,14 @@ class Store:
         self._lock = threading.RLock()
         self._depth = 0
         self._conn.executescript(SCHEMA)
+        self._conn.executescript(SEQ_TRIGGERS)
         self._conn.execute(
             "INSERT OR IGNORE INTO meta_kv(k, v) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),)
         )
+
+    def state_seq(self) -> int:
+        row = self.one("SELECT seq FROM state_seq WHERE id = 1")
+        return int(row["seq"]) if row else 0
 
     def close(self) -> None:
         with self._lock:

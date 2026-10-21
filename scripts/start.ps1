@@ -101,4 +101,5 @@ if ($NoBrowser) {
 }
 Write-Host "Phone/desktop app: http://127.0.0.1:8740/ $(if ($Lan) {'(Wi-Fi phone: see the LAN address in the host console)'})$(if ($Usb) {'(USB phone: same address, or scan the pairing QR code)'})"
 Write-Host "Logs:              $logs"
+Write-Host "Host console again: powershell -ExecutionPolicy Bypass -File scripts\host-console.ps1$(if ($DataDir) {" -DataDir $DataDir"})"
 Write-Host "Stop everything:   powershell -ExecutionPolicy Bypass -File scripts\stop.ps1"

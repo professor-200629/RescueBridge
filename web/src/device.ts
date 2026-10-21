@@ -68,77 +68,7 @@ const SUGGESTIONS = ["I can't hear anything", "My clicks are wrong", "My notes w
 const GREETING = "Hi. Tell me what's wrong with your laptop: tap the orb and speak, or type below. "
   + "I'll check the laptop first and nothing changes until you approve it here.";
 
-// ------------------------------------------------------------------------------------------ pairing
-export function renderPairing(root: HTMLElement, session: Session): void {
-  const frag = new URLSearchParams(location.hash.slice(1));
-  const preset = frag.get("pair") ?? "";
-  if (location.hash) history.replaceState(null, "", location.pathname);
-  const code = h("input", { id: "code", class: "code-input", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "9",
-    value: preset, "aria-describedby": "code-help", placeholder: "1234 5678" });
-  const name = h("input", { id: "devname", maxlength: "60", value: guessDeviceName() });
-  const msg = h("p", { class: "notice", role: "status", "aria-live": "polite" });
-  const btn = h("button", { class: "primary big", type: "submit" }, icon("link"), "Request pairing");
-  let polling = 0;
-  const form = h("form", {
-    class: "card pair",
-    onsubmit: async (e: Event) => {
-      e.preventDefault();
-      btn.setAttribute("disabled", "");
-      msg.textContent = "Sending request…";
-      try {
-        const r = await api("/api/pair/request", { body: { code: code.value, device_name: name.value } });
-        msg.textContent = r.message;
-        polling = window.setInterval(async () => {
-          try {
-            const c = await api("/api/pair/claim", { body: {} });
-            if (c.status === "PAIRED") {
-              clearInterval(polling);
-              location.reload();
-            }
-          } catch (err) {
-            clearInterval(polling);
-            msg.textContent = (err as Error).message;
-            btn.removeAttribute("disabled");
-          }
-        }, 2000);
-      } catch (err) {
-        msg.textContent = (err as Error).message;
-        btn.removeAttribute("disabled");
-      }
-    },
-  },
-    h("div", { class: "pair-hero", "aria-hidden": "true" }, h("span", { class: "pair-node" }, icon("phone")),
-      h("span", { class: "pair-beam" }), h("span", { class: "pair-node" }, icon("laptop"))),
-    h("h2", null, "Pair this phone with your laptop"),
-    h("ol", { class: "steps" },
-      h("li", null, h("strong", null, "On the laptop"), ` (${session.host_name}): open the RescueBridge host console and create a pairing code.`),
-      h("li", null, h("strong", null, "Here"), ": scan its QR code or type the 8 digits."),
-      h("li", null, h("strong", null, "On the laptop"), ": tap Accept this device.")),
-    h("label", { for: "code" }, "Pairing code (8 digits)"), code,
-    h("p", { id: "code-help", class: "hint" }, "Works once, expires in 5 minutes. Do this while the laptop still works normally."),
-    h("label", { for: "devname" }, "Name for this device"), name,
-    btn, msg);
-  replace(root, header(session), h("main", { id: "main" }, form));
-  code.focus();
-  // A QR scan or link may change only the fragment of an already-open page: pick the code up then too.
-  window.addEventListener("hashchange", () => {
-    const next = new URLSearchParams(location.hash.slice(1)).get("pair");
-    if (next) {
-      code.value = next;
-      history.replaceState(null, "", location.pathname);
-    }
-  });
-}
-
-function guessDeviceName(): string {
-  const ua = navigator.userAgent;
-  if (/SM-|Samsung/i.test(ua)) return "Samsung phone";
-  if (/Android/i.test(ua)) return "Android phone";
-  if (/iPhone/i.test(ua)) return "iPhone";
-  return "This browser";
-}
-
-function header(session: Session, status?: HTMLElement): HTMLElement {
+export function header(session: Session, status?: HTMLElement): HTMLElement {
   return h("header", { class: "top" }, h("div", { class: "top-inner" },
     h("div", { class: "brand" }, h("span", { class: "logo" }, icon("logo")),
       h("div", null, h("h1", null, "RescueBridge"),
@@ -162,6 +92,27 @@ function progress(i: any): [number, number, boolean] {
 }
 
 // ------------------------------------------------------------------------------------------ recovery app
+export type Caller = <T = any>(path: string, opts?: { method?: string; body?: unknown; timeoutMs?: number }) => Promise<T>;
+
+type ErrorAction = { label: string; run: () => void; primary?: boolean };
+type UiError = { title: string; detail: string; actions: ErrorAction[] };
+type Failure = { kind: "timeout" | "disconnected" | "session" | "busy" | "conflict" | "server" | "rejected" | "preview"; message: string };
+
+/** Sort a failed request into what the person can do about it. A timeout is never treated as "it failed". */
+export function classify(e: unknown): Failure {
+  if (e instanceof ApiError) {
+    if (e.code === "PREVIEW") return { kind: "preview", message: e.message };
+    if (e.code === "TIMEOUT") return { kind: "timeout", message: e.message };
+    if (e.code === "NETWORK" || e.status === 0) return { kind: "disconnected", message: e.message };
+    if (e.status === 401) return { kind: "session", message: e.message };
+    if (e.code === "BUSY") return { kind: "busy", message: e.message };
+    if (e.status === 409) return { kind: "conflict", message: e.message };
+    if (e.status >= 500) return { kind: "server", message: e.message };
+    return { kind: "rejected", message: e.message };
+  }
+  return { kind: "server", message: (e as Error)?.message || "Unexpected error" };
+}
+
 export class RecoveryApp {
   private payload: any = null;
   private lastOk = 0;
@@ -169,17 +120,31 @@ export class RecoveryApp {
   private sendStarted = 0;
   private speakReplies = true;
   private voiceText = "";
-  private lastSpokenId = "";
   private voice: Voice;
   private cardHost: AppCardHost | null = null;
+  private call: Caller;
+  private preview: boolean;
+  // Snapshot ordering: only snapshots at least as new as the last one shown are accepted.
+  private lastSeq = -1;
+  private deviceId: string | null = null;
+  private staleDiscarded = 0;
+  private polling = false;
+  // Speech: the first snapshot is history (captioned, never spoken); each reply id is spoken at most once.
+  private historyLoaded = false;
+  private handledReplies = new Set<string>();
+  // Requests in flight, by control: a pending control stays disabled across re-renders.
+  private pending = new Set<string>();
+  private error: UiError | null = null;
   private els!: {
-    status: HTMLElement; hero: HTMLElement; caption: HTMLElement; convo: HTMLElement; issues: HTMLElement;
-    actions: HTMLElement; mic: HTMLButtonElement; micLabel: HTMLElement; micState: HTMLElement;
+    status: HTMLElement; connHelp: HTMLElement; hero: HTMLElement; caption: HTMLElement; convo: HTMLElement;
+    issues: HTMLElement; actions: HTMLElement; mic: HTMLButtonElement; micLabel: HTMLElement; micState: HTMLElement;
     input: HTMLTextAreaElement; send: HTMLButtonElement; stopSpeak: HTMLButtonElement; stopBtn: HTMLButtonElement;
-    stopStatus: HTMLElement; diag: HTMLDetailsElement; diagBody: HTMLElement; working: HTMLElement;
+    stopStatus: HTMLElement; diag: HTMLDetailsElement; diagBody: HTMLElement; working: HTMLElement; errorBox: HTMLElement;
   };
 
-  constructor(private root: HTMLElement, private session: Session) {
+  constructor(private root: HTMLElement, private session: Session, opts: { call?: Caller; preview?: boolean } = {}) {
+    this.call = opts.call ?? api;
+    this.preview = Boolean(opts.preview);
     setCsrf(session.csrf_token ?? "");
     this.voice = new Voice({
       onTranscript: (text, final) => {
@@ -217,6 +182,7 @@ export class RecoveryApp {
 
   private build(): void {
     const status = h("div", { class: "conn", role: "status" }, h("span", { class: "chip" }, "Connecting…"));
+    const connHelp = h("div", { class: "conn-help", hidden: true });
     const micLabel = h("span", { class: "orb-label" }, "Tap to talk");
     const mic = h("button", { class: "orb", type: "button", "aria-pressed": "false",
       onclick: () => (this.voice.isListening ? this.voice.stopListening() : this.voice.start()) },
@@ -236,13 +202,15 @@ export class RecoveryApp {
     const speakToggle = h("input", { type: "checkbox", id: "speak", class: "switch", checked: true,
       onchange: (e: Event) => { this.speakReplies = (e.target as HTMLInputElement).checked; if (!this.speakReplies) this.voice.stopSpeaking(); } });
     const working = h("p", { class: "working", role: "status", "aria-live": "polite" });
+    // Errors live in their own alert region: progress text and re-renders never overwrite them.
+    const errorBox = h("div", { class: "error-box", role: "alert", hidden: true });
     const suggestions = h("div", { class: "suggest", role: "group", "aria-label": "Example phrases" },
       SUGGESTIONS.map((s) => h("button", { type: "button", class: "chip-btn", onclick: () => { input.value = s; this.voiceText = ""; input.focus(); } }, s)));
     const form = h("form", { class: "talk", onsubmit: (e: Event) => { e.preventDefault(); void this.send(); } },
       h("h2", { class: "sr-only" }, "Tell me what's wrong"), input,
       h("div", { class: "row" }, send, stopSpeak), suggestions,
       h("div", { class: "row small toggle" }, speakToggle, h("label", { for: "speak" }, "Speak replies aloud on this device")),
-      working);
+      working, errorBox);
     const hero = h("section", { class: "hero card", "aria-label": "Talk to RescueBridge", dataset: { state: "idle" } },
       mic, micState, caption, form);
     const convo = h("section", { class: "convo card", "aria-label": "Conversation captions" });
@@ -272,25 +240,73 @@ export class RecoveryApp {
         h("div", { class: "tile" }, icon("window"), h("span", null, "Window lost off-screen"))),
       h("p", { class: "hint" }, icon("shield", "ico inline"), " Nothing changes on the laptop unless you tap Approve. Anything else is reported as unsupported. "
         + "Your laptop must be on, unlocked, and running RescueBridge."));
-    replace(this.root, header(this.session, status),
-      h("main", { id: "main" }, hero, issues, appCard, intro, convo, actions, diag),
+    const banner = this.preview ? h("div", { class: "preview-banner", role: "note" },
+      h("strong", null, "Simulated preview"),
+      " — a recorded conversation from RescueBridge's fixture engine. Nothing on any laptop is read or changed, nothing is paired, and no approval leaves this page. ",
+      h("button", { type: "button", class: "secondary small-btn", onclick: () => { location.hash = ""; location.reload(); } }, "Exit preview")) : null;
+    replace(this.root, banner, header(this.session, h("div", null, status, connHelp)),
+      h("main", { id: "main" }, hero, issues, this.preview ? null : appCard, intro, convo, actions, this.preview ? null : diag),
       h("footer", { class: "stop-bar" }, stopBtn, stopStatus));
-    this.els = { status, hero, caption, convo, issues, actions, mic, micLabel, micState, input, send, stopSpeak, stopBtn,
-      stopStatus, diag, diagBody, working };
+    this.els = { status, connHelp, hero, caption, convo, issues, actions, mic, micLabel, micState, input, send, stopSpeak, stopBtn,
+      stopStatus, diag, diagBody, working, errorBox };
     this.renderCaption(null);
   }
 
   private lastKey = "";
   private introCollapsed = false;
 
+  /**
+   * The single gate for every snapshot (poll or action response). Rejects snapshots older than the last one shown,
+   * so a delayed response can never bring back a state from before a newer action (for example ACTIVE after Stop).
+   */
+  private accept(p: any, ownReplyId?: string): boolean {
+    const snap = p?.snapshot;
+    if (snap) {
+      if (this.deviceId && snap.device_id && snap.device_id !== this.deviceId) {
+        location.reload(); // a different device session took over this browser: start clean
+        return false;
+      }
+      this.deviceId = this.deviceId ?? snap.device_id ?? null;
+      if (typeof snap.seq === "number") {
+        if (snap.seq < this.lastSeq) {
+          this.staleDiscarded += 1;
+          return false;
+        }
+        this.lastSeq = snap.seq;
+      }
+    }
+    this.payload = p;
+    this.lastOk = Date.now();
+    this.noteReplies(p.messages ?? [], ownReplyId);
+    return true;
+  }
+
+  /** Speak replies that are new since this page loaded; never history, never twice, only when enabled. */
+  private noteReplies(msgs: any[], ownReplyId?: string): void {
+    const replies = msgs.filter((m) => m.role === "assistant");
+    if (!this.historyLoaded) {
+      replies.forEach((m) => { if (m.id !== ownReplyId) this.handledReplies.add(m.id); });
+      this.historyLoaded = true;
+    }
+    const fresh = replies.filter((m) => !this.handledReplies.has(m.id));
+    fresh.forEach((m) => this.handledReplies.add(m.id));
+    if (fresh.length && this.speakReplies) this.voice.speak(fresh.map((m) => m.text).join(" "));
+  }
+
+  private async fetchState(): Promise<boolean> {
+    const p = await this.call("/api/state", { timeoutMs: 8000 });
+    return this.accept(p);
+  }
+
   private async refresh(): Promise<void> {
+    if (this.polling) return; // never two polls in flight
+    this.polling = true;
     try {
-      const p = await api("/api/state", { timeoutMs: 8000 });
-      this.payload = p;
-      this.lastOk = Date.now();
-      const key = JSON.stringify([p.status, p.messages, Boolean(p.busy_since), p.helper?.reachable]);
-      if (key === this.lastKey) {
-        this.renderConnection(); // nothing changed: keep focus and screen-reader position
+      const accepted = await this.fetchState();
+      const p = this.payload;
+      const key = JSON.stringify([p?.status, p?.messages, Boolean(p?.busy_since), p?.helper?.reachable]);
+      if (!accepted || key === this.lastKey) {
+        this.renderConnection(); // nothing new: keep focus and screen-reader position
         return;
       }
       this.render();
@@ -300,6 +316,8 @@ export class RecoveryApp {
         return;
       }
       this.renderConnection();
+    } finally {
+      this.polling = false;
     }
   }
 
@@ -329,8 +347,18 @@ export class RecoveryApp {
     const helperText = helper.reachable === false ? "Laptop helper: NOT reachable" : helper.reachable ? "Helper ready" : "Helper not checked yet";
     replace(this.els.status, conn,
       h("span", { class: "chip" }, icon("laptop"), this.session.host_name),
-      h("span", { class: `chip mode mode-${adapter.replace(/\s+/g, "-").toLowerCase()}` }, adapter),
-      h("span", { class: `chip ${helper.reachable === false ? "bad" : ""}` }, helperText));
+      h("span", { class: `chip mode mode-${adapter.replace(/\s+/g, "-").toLowerCase()}` }, this.preview ? "Simulated preview" : adapter),
+      this.preview ? null : h("span", { class: `chip ${helper.reachable === false ? "bad" : ""}` }, helperText));
+    let help: string | null = null;
+    if (!this.preview && (!this.lastOk || age >= 20)) {
+      help = /^(127\.0\.0\.1|localhost)$/.test(location.hostname)
+        ? "Cannot reach the laptop. On a phone, 127.0.0.1 works only while the USB link is on: check the cable and that RescueBridge was started with -Usb. On the laptop itself, check that RescueBridge is still running."
+        : "Cannot reach the laptop. Check that both are on the same Wi-Fi and that RescueBridge is still running on the laptop.";
+    } else if (!this.preview && helper.reachable === false) {
+      help = "The laptop helper is not running, so nothing can be checked or changed right now. On the laptop, run scripts\\start.ps1 again. Stop still records your request.";
+    }
+    this.els.connHelp.hidden = !help;
+    if ((this.els.connHelp.textContent || null) !== help) this.els.connHelp.textContent = help ?? "";
   }
 
   private render(): void {
@@ -338,8 +366,29 @@ export class RecoveryApp {
   }
 
   private renderCaption(last: any | null): void {
-    replace(this.els.caption, h("span", { class: "who" }, icon("spark", "ico inline"), " RescueBridge"),
-      h("p", { class: "caption-text" }, last?.text ?? GREETING));
+    replace(this.els.caption, h("span", { class: "who" }, icon("spark", "ico inline"), this.preview ? " RescueBridge (simulated)" : " RescueBridge"),
+      h("p", { class: "caption-text" }, last?.text ?? (this.preview
+        ? "This is a recorded simulation. Tap “I can't hear anything” below, then Send, and follow the buttons."
+        : GREETING)));
+  }
+
+  private renderError(): void {
+    const box = this.els.errorBox;
+    const err = this.error;
+    box.hidden = !err;
+    if (!err) {
+      replace(box);
+      return;
+    }
+    replace(box, h("p", { class: "err-title" }, err.title), h("p", { class: "err-detail" }, err.detail),
+      h("div", { class: "row" },
+        err.actions.map((a) => h("button", { type: "button", class: a.primary ? "primary" : "secondary", onclick: a.run }, a.label)),
+        h("button", { type: "button", class: "secondary", onclick: () => this.showError(null) }, "Dismiss")));
+  }
+
+  private showError(err: UiError | null): void {
+    this.error = err;
+    this.renderError();
   }
 
   private renderInner(): void {
@@ -354,12 +403,7 @@ export class RecoveryApp {
         h("span", { class: "text" }, m.text))));
     replace(this.els.convo, h("h2", null, "Conversation"), msgs.length ? list : h("p", { class: "hint" }, "No messages yet."));
     list.scrollTop = list.scrollHeight;
-    const last = msgs.filter((m) => m.role === "assistant").slice(-1)[0];
-    this.renderCaption(last ?? null);
-    if (last && last.id !== this.lastSpokenId) {
-      if (this.lastSpokenId && this.speakReplies) this.voice.speak(last.text);
-      this.lastSpokenId = last.id;
-    }
+    this.renderCaption(msgs.filter((m) => m.role === "assistant").slice(-1)[0] ?? null);
     // issues
     const st = p.status;
     if (st?.mission && !this.introCollapsed) {
@@ -383,11 +427,19 @@ export class RecoveryApp {
     // actions
     const stopped = st?.mission?.state === "STOPPED";
     replace(this.els.actions,
-      stopped ? h("button", { id: "continue-btn", class: "secondary", type: "button", onclick: () => void this.post("/api/continue", {}) }, "Continue (everything is re-checked first)") : null,
+      stopped ? this.button("continue-btn", "secondary", "Continue (everything is re-checked first)",
+        (b) => this.act("continue", b, "/api/continue", {}, "action")) : null,
       st?.mission ? h("button", { id: "handoff-btn", class: "secondary", type: "button", onclick: () => void this.handoff() }, "Prepare handoff summary") : null,
       h("div", { id: "handoff" }));
     if (p.busy_since && !this.sending) this.els.working.textContent = "The laptop is still working on a previous request…";
     else if (!this.sending) this.els.working.textContent = "";
+  }
+
+  /** A button bound to a request: disabled at once when tapped and while its request is pending. */
+  private button(id: string, cls: string, label: string, run: (btn: HTMLButtonElement) => Promise<void>): HTMLButtonElement {
+    const busy = this.pending.has(id);
+    return h("button", { id, type: "button", class: cls, disabled: busy, "aria-busy": busy ? "true" : null,
+      onclick: (e: Event) => void run(e.currentTarget as HTMLButtonElement) }, label);
   }
 
   private rail(i: any): HTMLElement {
@@ -399,6 +451,7 @@ export class RecoveryApp {
 
   private issueCard(i: any): HTMLElement {
     const conf = i.confirmation;
+    const iid = i.issue_id;
     return h("article", { class: `card issue state-${i.state.toLowerCase()}`, "aria-label": KIND_TITLE[i.kind] ?? i.category },
       h("div", { class: "issue-head" }, h("span", { class: "kind-ico" }, icon(KIND_ICON[i.kind] ?? "question")),
         h("h3", null, KIND_TITLE[i.kind] ?? i.category),
@@ -411,16 +464,16 @@ export class RecoveryApp {
       i.inspection_problems?.length ? h("p", { class: "warn-text" }, "Could not observe: ", i.inspection_problems.join("; "), ". This is not evidence that the setting is fine.") : null,
       i.state === "NEEDS_CLARIFICATION" && i.question ? h("div", { class: "question" }, h("p", { class: "q" }, i.question),
         h("div", { class: "options" }, (i.options ?? []).map((o: any) =>
-          h("button", { id: `opt-${i.issue_id}-${o.value}`, type: "button", class: "option", onclick: () => void this.answer(i, o) }, o.label)))) : null,
+          this.button(`opt-${iid}-${o.value}`, "option", o.label, (b) => this.answer(i, o, b))))) : null,
       (i.open_proposals ?? []).map((pr: any) => this.proposalCard(pr)),
       i.state === "AWAITING_USER_CONFIRMATION" ? h("div", { class: "confirm" },
         h("p", { class: "q" }, conf?.question ?? "Does it work now?"),
         this.simulated() ? h("p", { class: "warn-text" }, SIMULATION_NOTE)
           : conf?.test_kind === "click" ? h("p", { class: "hint" }, "A green click-test target should be on the laptop screen.") : null,
         h("div", { class: "options three" },
-          h("button", { id: `res-${i.issue_id}-works`, type: "button", class: "approve", onclick: () => void this.result(i, "works") }, "Yes, it works"),
-          h("button", { id: `res-${i.issue_id}-broken`, type: "button", class: "secondary", onclick: () => void this.result(i, "still_broken") }, "No, still broken"),
-          h("button", { id: `res-${i.issue_id}-unsure`, type: "button", class: "secondary", onclick: () => void this.result(i, "unsure") }, "Not sure"))) : null,
+          this.button(`res-${iid}-works`, "approve", "Yes, it works", (b) => this.result(i, "works", b)),
+          this.button(`res-${iid}-broken`, "secondary", "No, still broken", (b) => this.result(i, "still_broken", b)),
+          this.button(`res-${iid}-unsure`, "secondary", "Not sure", (b) => this.result(i, "unsure", b)))) : null,
       (i.operations?.length || i.person_results?.length) ? h("div", { class: "evidence" }, h("h4", null, "Evidence"),
         h("ul", null,
           (i.operations ?? []).map((o: any) => h("li", { class: `ev ev-${(o.kind ?? "repair").toLowerCase()}` },
@@ -431,17 +484,20 @@ export class RecoveryApp {
             o.workpad_text_unchanged === true ? h("div", { class: "small ok-text" }, icon("check", "ico inline"), " WorkPad's unsaved text: unchanged (same content fingerprint)") : null,
             o.workpad_text_unchanged === false ? h("div", { class: "small warn-text" }, "WorkPad's text fingerprint differs from before") : null,
             o.note || o.reconcile_note ? h("div", { class: "small" }, o.reconcile_note ?? o.note) : null,
-            o.undo_available && i.state !== "STOPPED" ? h("button", { id: `undo-${o.operation_id}`, type: "button", class: "secondary small-btn", onclick: () => void this.undo(o) }, "Undo this change…") : null)),
+            o.undo_available && i.state !== "STOPPED"
+              ? this.button(`undo-${o.operation_id}`, "secondary small-btn", "Undo this change…",
+                (b) => this.act(`undo-${o.operation_id}`, b, `/api/operations/${o.operation_id}/undo`, {}, "action")) : null)),
           (i.person_results ?? []).map((r: any) => h("li", { class: "ev ev-person" }, h("span", { class: "label" }, "Your result: "),
             r.result === "works" ? "works" : r.result === "still_broken" ? "still broken" : "not sure",
             h("span", { class: "small" }, ` (${r.source === "ui_button" ? "tapped" : "said, interpreted"} at ${fmtTime(r.at)})`))))) : null,
       i.next_manual_step ? h("p", { class: "next" }, h("span", { class: "label" }, "Next step: "), i.next_manual_step) : null,
       ["UNRESOLVED", "FAILED", "REPORTED"].includes(i.state) && this.payload?.status?.mission?.state === "ACTIVE"
-        ? h("button", { id: `recheck-${i.issue_id}`, type: "button", class: "secondary",
-            onclick: () => void this.post(`/api/issues/${i.issue_id}/inspect`, {}) }, "Check again (fresh observation)") : null);
+        ? this.button(`recheck-${iid}`, "secondary", "Check again (fresh observation)",
+          (b) => this.act(`recheck-${iid}`, b, `/api/issues/${iid}/inspect`, {}, "action")) : null);
   }
 
   private proposalCard(pr: any): HTMLElement {
+    const pid = pr.proposal_id;
     return h("div", { class: `proposal kind-${pr.kind.toLowerCase()}`, role: "group", "aria-label": PROPOSAL_KIND[pr.kind] },
       h("div", { class: "proposal-head" }, icon(pr.kind === "TEST" ? "speaker" : "shield", "ico"),
         h("span", { class: "label" }, `${PROPOSAL_KIND[pr.kind] ?? "Proposal"} · version ${pr.version}`),
@@ -450,14 +506,14 @@ export class RecoveryApp {
       pr.kind === "TEST" && this.simulated() ? h("p", { class: "warn-text" }, SIMULATION_NOTE) : null,
       h("p", { class: "small" }, "Approves exactly this text, for this laptop, until Stop."),
       pr.status === "PENDING" ? h("div", { class: "options" },
-        h("button", { id: `approve-${pr.proposal_id}`, type: "button", class: "approve big", onclick: () => void this.approve(pr) }, pr.kind === "TEST" ? "Approve and play" : "Approve and apply"),
-        h("button", { id: `decline-${pr.proposal_id}`, type: "button", class: "secondary", onclick: () => void this.post(`/api/proposals/${pr.proposal_id}/decline`, {}) }, "Decline")) :
+        this.button(`approve-${pid}`, "approve big", pr.kind === "TEST" ? "Approve and play" : "Approve and apply", (b) => this.approve(pr, b)),
+        this.button(`decline-${pid}`, "secondary", "Decline", (b) => this.act(`decline-${pid}`, b, `/api/proposals/${pid}/decline`, {}, "action"))) :
         h("p", { class: "small" }, `Status: ${pr.status}`));
   }
 
   // ---------------------------------------------------------------------------------- actions
-  private async send(): Promise<void> {
-    const text = this.els.input.value.trim();
+  private async send(retryText?: string): Promise<void> {
+    const text = (retryText ?? this.els.input.value).trim();
     if (!text || this.sending) return;
     this.voice.stopListening();
     this.sending = true;
@@ -465,14 +521,15 @@ export class RecoveryApp {
     this.orb("thinking");
     this.els.send.setAttribute("disabled", "");
     const mode = this.voiceText && text === this.voiceText ? "voice" : "text";
+    const known = new Set<string>((this.payload?.messages ?? []).map((m: any) => m.id));
     try {
-      const r = await api("/api/utterance", { body: { text, input_mode: mode } });
-      this.els.input.value = "";
+      const r = await this.call("/api/utterance", { body: { text, input_mode: mode } });
+      if (this.els.input.value.trim() === text) this.els.input.value = ""; // keep anything typed meanwhile
       this.voiceText = "";
-      this.payload = r;
-      this.lastOk = Date.now();
+      this.showError(null);
+      this.accept(r, r.reply?.id);
     } catch (e) {
-      this.els.working.textContent = (e as Error).message;
+      await this.sendFailed(e, text, known);
     } finally {
       this.sending = false;
       this.orb("idle");
@@ -481,47 +538,156 @@ export class RecoveryApp {
     }
   }
 
-  private async post(path: string, body: unknown): Promise<void> {
+  private async sendFailed(e: unknown, text: string, known: Set<string>): Promise<void> {
+    const f = classify(e);
+    const retry: ErrorAction = { label: "Retry", primary: true, run: () => void this.send(text) };
+    const kept = "Your words are still in the box.";
+    if (f.kind === "preview") {
+      this.showError({ title: "Simulated preview", detail: f.message, actions: [] });
+      return;
+    }
+    if (f.kind === "session") {
+      this.showError({ title: "This phone's session with the laptop has ended.", detail: "Pair it again with a new code from the laptop's host console. Your message was not sent.",
+        actions: [{ label: "Pair again", primary: true, run: () => location.reload() }] });
+      return;
+    }
+    if (f.kind === "timeout" || f.kind === "disconnected") {
+      // Did the message reach the laptop before the connection failed? Check before offering to send it again.
+      const head = f.kind === "timeout" ? "The laptop did not answer in time." : "This phone lost the connection to the laptop.";
+      let delivered = false;
+      try {
+        await this.fetchState();
+        delivered = (this.payload?.messages ?? []).some((m: any) => m.role === "user" && m.text === text && !known.has(m.id));
+      } catch {
+        delivered = false;
+      }
+      if (delivered) {
+        if (this.els.input.value.trim() === text) this.els.input.value = "";
+        this.showError({ title: head, detail: "Your message did reach the laptop and was not sent twice. Its answer appears below when it is ready.", actions: [] });
+      } else {
+        this.showError({ title: head, detail: `Your message was not delivered. ${kept} Tap Retry when the connection is back.`, actions: [retry] });
+      }
+      return;
+    }
+    if (f.kind === "busy") {
+      this.showError({ title: "The laptop is still working on your previous request.", detail: `Wait a moment, then tap Retry. ${kept}`, actions: [retry] });
+      return;
+    }
+    if (f.kind === "server") {
+      this.showError({ title: "RescueBridge on the laptop hit a server error.", detail: `${f.message}. ${kept} Tap Retry; if it keeps failing, use Stop and restart RescueBridge on the laptop.`, actions: [retry] });
+      return;
+    }
+    this.showError({ title: "The laptop did not accept that.", detail: `${f.message} ${kept}`, actions: [retry] });
+  }
+
+  /**
+   * One request bound to one control. kind "change" may change Windows (an approval): after a timeout or lost
+   * connection it is never re-sent; the laptop's recorded state is fetched first and shown.
+   */
+  private async act(key: string, btn: HTMLButtonElement | null, path: string, body: unknown, kind: "change" | "action"): Promise<void> {
+    if (this.pending.has(key)) return;
+    this.pending.add(key);
+    btn?.setAttribute("disabled", "");
+    btn?.setAttribute("aria-busy", "true");
     this.orb("thinking");
     try {
-      const r = await api(path, { body });
-      if (r.status) this.payload = r;
-      this.render();
+      const r = await this.call(path, { body });
+      this.showError(null);
+      this.accept(r, r.reply?.id);
     } catch (e) {
-      this.els.working.textContent = (e as Error).message;
+      await this.actionFailed(e, kind, () => void this.act(key, null, path, body, kind));
     } finally {
+      this.pending.delete(key);
       if (!this.voice.isListening) this.orb("idle");
+      this.render();
     }
   }
 
-  private async approve(pr: any): Promise<void> {
+  private async actionFailed(e: unknown, kind: "change" | "action", retry: () => void): Promise<void> {
+    const f = classify(e);
+    if (f.kind === "preview") {
+      this.showError({ title: "Simulated preview", detail: f.message, actions: [] });
+      return;
+    }
+    if (f.kind === "session") {
+      this.showError({ title: "This phone's session with the laptop has ended.", detail: "Pair it again with a new code from the laptop.",
+        actions: [{ label: "Pair again", primary: true, run: () => location.reload() }] });
+      return;
+    }
+    if (f.kind === "timeout" || f.kind === "disconnected") {
+      const head = f.kind === "timeout" ? "The laptop did not answer in time." : "This phone lost the connection to the laptop.";
+      if (kind === "change") {
+        const title = `${head} The change may or may not have happened.`;
+        this.showError({ title, detail: "Checking what the laptop recorded before anything else is tried…", actions: [] });
+        let checked = false;
+        try {
+          checked = await this.fetchState();
+        } catch {
+          checked = false;
+        }
+        this.render();
+        this.showError({ title, detail: checked
+          ? "Checked: the cards below show what the laptop recorded. Nothing was sent again; approve again only if the proposal is still waiting."
+          : "The laptop could not be checked yet. Nothing was sent again. Tap Check again when the connection is back.",
+        actions: [{ label: "Check again", primary: true, run: () => void this.recheck(title) }] });
+        return;
+      }
+      this.showError({ title: head, detail: "Tap Retry when the connection is back.", actions: [{ label: "Retry", primary: true, run: retry }] });
+      return;
+    }
+    if (f.kind === "server") {
+      this.showError({ title: "RescueBridge on the laptop hit a server error.", detail: `${f.message}.`, actions: [{ label: "Retry", primary: true, run: retry }] });
+      return;
+    }
+    // conflict / rejected / busy: the server refused; show why and the current state
+    this.showError({ title: "The laptop did not accept that.", detail: f.message, actions: [] });
+    try {
+      await this.fetchState();
+    } catch {
+      // keep the current view
+    }
+  }
+
+  private async recheck(title: string): Promise<void> {
+    try {
+      await this.fetchState();
+      this.render();
+      this.showError({ title, detail: "Checked again: the cards below show what the laptop recorded.", actions: [] });
+    } catch {
+      this.showError({ title, detail: "Still cannot reach the laptop. Nothing was sent again.",
+        actions: [{ label: "Check again", primary: true, run: () => void this.recheck(title) }] });
+    }
+  }
+
+  private async approve(pr: any, btn: HTMLButtonElement): Promise<void> {
+    if (this.pending.has(`approve-${pr.proposal_id}`)) return;
     this.els.working.textContent = "Approved. Applying on the laptop and checking the result…";
-    await this.post(`/api/proposals/${pr.proposal_id}/approve`, { digest: pr.digest });
+    await this.act(`approve-${pr.proposal_id}`, btn, `/api/proposals/${pr.proposal_id}/approve`, { digest: pr.digest }, "change");
   }
 
-  private async answer(issue: any, o: any): Promise<void> {
+  private async answer(issue: any, o: any, btn: HTMLButtonElement): Promise<void> {
     const field = issue.kind === "MOUSE_BUTTONS" ? "primary_button" : issue.kind === "OFFSCREEN_WINDOW" ? "target_ref" : "volume_percent";
-    await this.post(`/api/issues/${issue.issue_id}/answer`, { field, value: o.value, label: o.label });
+    await this.act(`opt-${issue.issue_id}-${o.value}`, btn, `/api/issues/${issue.issue_id}/answer`, { field, value: o.value, label: o.label }, "action");
   }
 
-  private async result(issue: any, result: string): Promise<void> {
-    await this.post(`/api/issues/${issue.issue_id}/result`, { result });
-  }
-
-  private async undo(op: any): Promise<void> {
-    await this.post(`/api/operations/${op.operation_id}/undo`, {});
+  private async result(issue: any, result: string, btn: HTMLButtonElement): Promise<void> {
+    await this.act(`res-${issue.issue_id}-${result}`, btn, `/api/issues/${issue.issue_id}/result`, { result }, "action");
   }
 
   private async stop(): Promise<void> {
+    // Stop is never blocked by other pending requests, and its acknowledged result is authoritative: snapshots
+    // older than the Stop response are rejected by accept().
     this.voice.stopSpeaking();
     this.els.stopStatus.textContent = "Stop requested…";
     this.els.stopBtn.setAttribute("aria-busy", "true");
     try {
-      const r = await api("/api/stop", { body: {}, timeoutMs: 15000 });
-      this.els.stopStatus.textContent = r.stop.stop_state === "CONFIRMED"
+      const r = await this.call("/api/stop", { body: {}, timeoutMs: 15000 });
+      this.els.stopStatus.textContent = r.stop?.stop_state === "CONFIRMED"
         ? "Stopped — the laptop helper confirmed it will reject further changes."
-        : "Stop recorded — but the laptop helper was unreachable, so whether it stopped is UNKNOWN.";
-      this.payload = r;
+        : r.stop?.stop_state === "PREVIEW"
+          ? "Preview: on a real laptop, Stop is confirmed by the laptop helper. Nothing is running here."
+          : "Stop recorded — but the laptop helper was unreachable, so whether it stopped is UNKNOWN.";
+      this.accept(r);
       this.render();
     } catch (e) {
       this.els.stopStatus.textContent = "Stop requested, but this device could not reach the laptop: status UNKNOWN. " + (e as Error).message;
@@ -532,25 +698,25 @@ export class RecoveryApp {
 
   private async handoff(): Promise<void> {
     try {
-      const r = await api("/api/handoff");
+      const r = await this.call("/api/handoff");
       const box = h("textarea", { readonly: true, rows: "10", "aria-label": "Handoff summary" });
       box.value = r.text;
       replace(document.getElementById("handoff")!, h("div", { class: "card" }, h("p", { class: "hint" },
         "Share this with someone helping you. It contains no passwords or window titles."), box,
         h("button", { type: "button", class: "secondary", onclick: () => void navigator.clipboard?.writeText(r.text) }, "Copy")));
     } catch (e) {
-      this.els.working.textContent = (e as Error).message;
+      this.showError({ title: "Could not prepare the handoff summary.", detail: (e as Error).message, actions: [] });
     }
   }
 
   private async loadDiagnostics(): Promise<void> {
     try {
-      const d = await api("/api/diagnostics");
+      const d = await this.call("/api/diagnostics");
       const s = this.session;
       replace(this.els.diagBody,
         h("p", null, `Language: ${s.model} (${s.model_provider}); data goes to: ${s.model_data_destination}.`),
         h("p", null, `Limits per request: ${s.agent_limits?.model_turns} model turns, ${s.agent_limits?.tool_calls} tool calls, ${s.agent_limits?.timeout_s} s.`),
-        h("p", null, `Host adapter: ${s.host_adapter}; MCP: ${d.settings.mcp_url}`),
+        h("p", null, `Host adapter: ${s.host_adapter}; MCP: ${d.settings.mcp_url}; snapshot ${this.lastSeq}, stale snapshots ignored: ${this.staleDiscarded}`),
         h("h4", null, "Recent agent runs"),
         h("ul", null, d.agent_runs.map((r: any) => h("li", null,
           `${fmtTime(r.started_at)} · ${r.provider}${r.model ? " " + r.model : ""} · ${r.latency?.total_ms ?? "?"} ms · turns ${r.model_turns} · tools ${r.tool_calls} · ${r.latency?.stop_reason}` +

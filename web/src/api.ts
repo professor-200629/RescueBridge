@@ -32,7 +32,10 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
       signal: ctrl.signal,
     });
   } catch (e) {
-    throw new ApiError("NETWORK", ctrl.signal.aborted ? "The laptop did not answer in time." : "Cannot reach the laptop.", 0);
+    // TIMEOUT: the request may have reached the laptop; NETWORK: it may or may not have. Neither means "failed".
+    throw ctrl.signal.aborted
+      ? new ApiError("TIMEOUT", "The laptop did not answer in time.", 0)
+      : new ApiError("NETWORK", "Cannot reach the laptop.", 0);
   } finally {
     clearTimeout(timer);
   }

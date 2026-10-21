@@ -402,6 +402,38 @@ button.stop .ico { width: 18px; height: 18px; fill: #fff; stroke: #fff; }
 .qr img { display: block; width: 220px; height: 220px; background: #fff; padding: 10px; border-radius: 16px; box-shadow: 0 0 40px rgba(34, 211, 238, 0.35); }
 .pending { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
 
+/* ---------------------------------------------------------------------------------------------- errors, guidance */
+.error-box {
+  margin: 12px 0 0; padding: 12px 14px; border-radius: 14px; text-align: left;
+  background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.55);
+}
+.error-box .err-title { margin: 0 0 4px; font-weight: 750; color: #fecaca; }
+.error-box .err-detail { margin: 0 0 4px; font-size: 0.9rem; }
+.error-box .row button { margin-top: 6px; }
+.field-error { color: #fecaca; font-weight: 600; font-size: 0.9rem; margin: 6px 0 0; min-height: 0; }
+.field-error:empty { display: none; }
+input[aria-invalid="true"] { border-color: var(--red); box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.16); }
+.conn-help {
+  margin: 8px 0 0; padding: 8px 12px; border-radius: 12px; font-size: 0.82rem; color: #fde68a;
+  background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.4);
+}
+.guide summary { cursor: pointer; font-weight: 700; }
+.guide[open] summary { margin-bottom: 8px; }
+.guide ul, .guide ol { padding-left: 20px; font-size: 0.92rem; }
+.guide li { margin: 6px 0; }
+code.cmd {
+  display: inline-block; max-width: 100%; overflow-wrap: anywhere; font: 0.78rem/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  padding: 2px 6px; border-radius: 6px; background: rgba(5, 8, 18, 0.7); border: 1px solid var(--line); color: #cffafe;
+}
+.preview-banner {
+  position: relative; z-index: 25; padding: 10px 16px; font-size: 0.86rem; text-align: center;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.18), rgba(167, 139, 250, 0.18));
+  border-bottom: 1px solid rgba(129, 140, 248, 0.45);
+}
+.preview-banner strong { color: var(--cyan); text-transform: uppercase; letter-spacing: 0.08em; }
+.preview-banner button { margin: 6px 0 0 8px; }
+.preview-cta h2 { margin-bottom: 4px; }
+
 /* ---------------------------------------------------------------------------------------------- motion */
 @keyframes breathe { 0%, 100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.035); filter: brightness(1.12); } }
 @keyframes ripple { 0% { transform: scale(0.85); opacity: 0.75; } 100% { transform: scale(1.55); opacity: 0; } }

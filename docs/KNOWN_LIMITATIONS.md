@@ -24,6 +24,13 @@ code inspection.
 
 ## Unverified (code exists, not yet run for real)
 
+- **Review repairs on a real phone** (persistent errors, first-reply speech, stale-snapshot rejection, pairing
+  validation, setup guidance): verified in headless Edge with network fault injection and a speech substitute,
+  not yet on the owner's phone with real audio.
+- **Simulated preview** is a replay of one recorded fixture conversation (sound only), not a live engine; other
+  phrasings are answered with a hint. Regenerate with `scripts\make_preview_data.py` when replies change (a test
+  fails if the recording no longer matches the fixture engine).
+
 - **MCP App card in other hosts:** verified only in RescueBridge's own simulator host (a single sandboxed
   iframe, a simplification of the spec's separate-origin sandbox proxy). Not yet opened in a third-party MCP
   Apps host; the MCP endpoint is loopback-only and needs a device token (`rescuebridge.cli mcp-token`).

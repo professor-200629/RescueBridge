@@ -48,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
     up.add_argument("--remove", action="store_true", help="remove the mapping instead")
     up.add_argument("--serial", help="adb serial, only needed when several phones are connected")
     sub.add_parser("host-link", help="create a fresh one-time host-console link")
+    hc = sub.add_parser("host-console", help="open the host console in this laptop's browser (fresh one-time link)")
+    hc.add_argument("--no-browser", action="store_true", help="only write the link file, do not open a browser")
     sub.add_parser("doctor", help="read-only setup checks")
     tp = sub.add_parser("mcp-token", help="print a 1-hour MCP bearer token for a paired device (external MCP host)")
     tp.add_argument("--device", required=True)
@@ -142,6 +144,10 @@ def main(argv: list[str] | None = None) -> int:
         path = write_host_link(s, AuthService(Store(s.db_path), s).create_host_bootstrap())
         print(f"New one-time host-console link written to {path}")
         return 0
+    if args.cmd == "host-console":
+        from rescuebridge.runtime import open_host_console
+
+        return open_host_console(load_settings(), open_browser=not args.no_browser)
     if args.cmd == "doctor":
         from rescuebridge.doctor import run_doctor
 

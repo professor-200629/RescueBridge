@@ -47,8 +47,10 @@ def _format_code(raw: str) -> str:
     return f"{raw[:4]}-{raw[4:]}"
 
 
-def normalize_code(code: str) -> str:
-    return "".join(ch for ch in str(code) if ch.isdigit())[:8]
+def normalize_code(code: str) -> str | None:
+    """Exactly eight digits after removing spaces and dashes; anything else is malformed (None)."""
+    compact = "".join(ch for ch in str(code) if ch not in " -\t")
+    return compact if len(compact) == 8 and compact.isascii() and compact.isdigit() else None
 
 
 class AuthService:
@@ -75,12 +77,19 @@ class AuthService:
         if recent and recent["n"] >= PAIRING_GLOBAL_FAILURES_PER_10MIN:
             raise AuthError("RATE_LIMITED", "Too many wrong codes. Wait 10 minutes and create a new code on the laptop.", 429)
         digits = normalize_code(code)
+        if digits is None:  # format is public: rejecting it reveals nothing and is not counted as a guess
+            raise AuthError("MALFORMED_CODE", "Enter the 8-digit code shown on the laptop (spaces and dashes are fine).", 400)
         active = self.store.one("SELECT * FROM pairing_codes WHERE used_at IS NULL AND expires_at > ? "
                                 "ORDER BY created_at DESC LIMIT 1", (t,))
         if active is None:
             self.store.insert("pairing_failures", {"at": t})
-            raise AuthError("NO_ACTIVE_CODE", "No active pairing code. Create one on the laptop's host console.", 400)
-        if len(digits) != 8 or not constant_time_equal(hash_secret(digits), active["code_hash"]):
+            latest = self.store.one("SELECT used_at, expires_at FROM pairing_codes ORDER BY created_at DESC LIMIT 1")
+            if latest and latest["used_at"] is None and latest["expires_at"] <= t:
+                raise AuthError("CODE_EXPIRED", "That pairing code has expired (codes last 5 minutes). Create a new one "
+                                "on the laptop's host console.", 400)
+            raise AuthError("NO_ACTIVE_CODE", "No pairing code is active on the laptop. On the laptop's host console, "
+                            "tap Create pairing code.", 400)
+        if not constant_time_equal(hash_secret(digits), active["code_hash"]):
             with self.store.tx():
                 self.store.insert("pairing_failures", {"at": t})
                 n = active["failed_attempts"] + 1
@@ -204,9 +213,13 @@ class AuthService:
     def consume_host_bootstrap(self, code: str) -> str:
         t = now_ms()
         row = self.store.one("SELECT * FROM host_bootstrap WHERE code_hash = ?", (hash_secret(code or ""),))
-        if not row or row["used_at"] or row["expires_at"] < t:
-            raise AuthError("BAD_BOOTSTRAP", "This host-console link is invalid or already used. Run the start script again "
-                            "or `rescuebridge host-link`.", 403)
+        again = "On this laptop run scripts\\host-console.ps1 to open a fresh one."
+        if not row:
+            raise AuthError("BAD_BOOTSTRAP", f"This host-console link is not valid. {again}", 403)
+        if row["used_at"]:
+            raise AuthError("BOOTSTRAP_USED", f"This one-time host-console link was already used. {again}", 403)
+        if row["expires_at"] < t:
+            raise AuthError("BOOTSTRAP_EXPIRED", f"This host-console link expired (links last 10 minutes). {again}", 403)
         with self.store.tx():
             if self.store.update("host_bootstrap", row["id"], {"used_at": t}, where_extra="AND used_at IS NULL") != 1:
                 raise AuthError("BAD_BOOTSTRAP", "Already used.", 403)

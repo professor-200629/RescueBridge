@@ -184,11 +184,15 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
 
     def state_payload(sess: SessionInfo) -> dict[str, Any]:
         principal = ui_principal(sess)
+        seq = ctx.store.state_seq()  # read together with the status below (no await in between: one consistent view)
         status = ctx.service.status(principal)
         msgs = ctx.store.all("SELECT id, role, text, input_mode, created_at, meta FROM messages WHERE device_id = ? "
                              "ORDER BY created_at DESC LIMIT 30", (sess.device_id,))
+        mission = status.get("mission") or {}
         return {"status": status, "messages": list(reversed(msgs)), "busy_since": st.busy_since.get(sess.device_id or ""),
-                "helper": ctx.service.last_helper_health, "server_time": now_ms()}
+                "helper": ctx.service.last_helper_health, "server_time": now_ms(),
+                # Clients keep only snapshots at least as new as the last one shown, for this device and mission.
+                "snapshot": {"seq": seq, "device_id": sess.device_id, "mission_id": mission.get("mission_id")}}
 
     # ------------------------------------------------------------------ public
     async def index(request: Request) -> Response:

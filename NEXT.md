@@ -41,6 +41,14 @@ and fixed 7 defects (`aae0f76`, VALIDATION 5c/5d). 81 tests pass. Not done: real
 session's permission policy blocked the real-mode host console), voice without the owner (the laptop voice did
 not reach the phone mic), any real Windows change (live lab never armed).
 
+## 2026-10-21 night: review repairs
+
+Six review items reproduced in Edge, then fixed (VALIDATION 5i): persistent Send errors + reconciliation,
+first-reply speech, monotonic `state_seq` snapshots (stale-after-Stop rejected, no overlapping polls), pairing
+validation + distinct errors, first-run guidance + `scripts\host-console.ps1`, and the browser-only
+"Try a simulated recovery" preview (`web/src/preview-data.json`, regenerate with `scripts\make_preview_data.py`).
+103 tests pass. Live instance restarted (real mode, `RescueBridge-real`); phone was unplugged at restart.
+
 ## Next actions (in order)
 
 1. (done 2026-10-21, VALIDATION 5f) live-lab WorkPad rehearsal: real window move verified. WorkPad's Tk
