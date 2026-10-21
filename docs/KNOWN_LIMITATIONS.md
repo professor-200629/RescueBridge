@@ -36,9 +36,11 @@ code inspection.
   Apps host; the MCP endpoint is loopback-only and needs a device token (`rescuebridge.cli mcp-token`).
 
 - Real Windows **changes** not yet run: `SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)`, Core Audio
-  `SetMasterVolumeLevelScalar`, the click-test window, real Undo. (Ran once each on real Windows: Core Audio
-  `SetMute` and the `winsound.PlaySound` tone, approved by the owner on the phone, `VALIDATION.md` 5e; and
-  `SetWindowPos` on WorkPad under the live lab, 5f.) The rest needs a real fault — the opt-in live lab.
+  `SetMasterVolumeLevelScalar`, the click-test window. (Verified on real Windows: Core Audio `SetMute`, the
+  `winsound.PlaySound` tone, `SetWindowPos` on WorkPad, and a guarded Undo of the unmute — `VALIDATION.md` 5e, 5f,
+  5j.) The mouse repair needs a person at the laptop for its click test.
+- The live lab refuses to push a **minimized** WorkPad off-screen (that would create no real fault). Launching
+  WorkPad from a hidden process starts it minimized; start it from a normal terminal.
 - **Phone over Wi-Fi**: LAN HTTPS mode and self-signed certificate acceptance were not tested on a real phone.
   LAN mode was not started on this laptop because Windows may show a firewall prompt that is the owner's
   decision.

@@ -95,3 +95,17 @@ def test_arming_file_is_private(lab):
     token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
     me = win32security.GetTokenInformation(token, win32security.TokenUser)[0]
     assert [dacl.GetAce(i)[2] for i in range(dacl.GetAceCount())] == [me]
+
+
+def test_workpad_fault_is_refused_while_workpad_is_minimized(lab):
+    # Found in a live run: moving a minimized WorkPad created no real off-screen fault.
+    settings, lops, ops = lab
+    live.arm(settings, lops, "rehearsal-3", 5, ["workpad"])
+    wp = next(w for w in ops.state.windows if w.hwnd == 0x1A2B)
+    wp.minimized = True
+    with pytest.raises(live.LabError, match="minimized"):
+        live.inject(settings, lops, "workpad-offscreen")
+    assert wp.rect == (200, 150, 1000, 750)  # untouched
+    wp.minimized = False
+    live.inject(settings, lops, "workpad-offscreen")
+    assert wp.rect[0] > 1000

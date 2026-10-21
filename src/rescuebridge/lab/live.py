@@ -116,6 +116,11 @@ def inject(settings: Settings, live: LiveOps, fault: str) -> dict[str, Any]:
         rects = live.ops.window_rect(wp["hwnd"])
         if not rects:
             raise LabError("WorkPad window not found")
+        # Found in a live run: "moving" a minimized WorkPad creates no off-screen fault (RescueBridge rightly reports
+        # minimized windows as unsupported), so the test would silently test nothing. Refuse instead.
+        if any(w.hwnd == wp["hwnd"] and (w.minimized or not w.visible) for w in live.ops.windows()):
+            raise LabError("WorkPad is minimized or hidden, so moving it would not create an off-screen fault. "
+                           "Restore it first (click it in the taskbar), then inject again.")
         r = rects[0]
         mons = live.ops.monitors()
         right = max(m.rect[2] for m in mons)

@@ -283,12 +283,32 @@ with `MALFORMED_CODE`.
 Not covered: real microphone or audio output for the new speech logic (substitute only); the redesigned flows on
 the owner's phone after these fixes; a screen reader; real Windows changes (none were made).
 
+### 5j. Everything re-tested on the owner's real phone and laptop (2026-10-21 22:19–22:27, owner: "test everything … full access")
+
+Claude drove only the RescueBridge tab of the phone's Chrome through its own DevTools socket (Playwright could no
+longer attach because another tab did not answer; no other tab was read), with request interception for the
+fault cases and a wrapper that records *and still speaks* every reply. Real-mode backend (`RescueBridge-real`).
+Real Windows changes ran only under the live lab, scope **audio + workpad**, then disarmed; the mouse swap was
+not run (its click test needs a person at the laptop).
+
+| Part | Result |
+|---|---|
+| A — repairs on the phone, read-only (16 checks) | **16/16**: rebuilt bundle `index-91_L_oPt.js`; no overflow at 384 px; history not spoken after reload; first reply spoken exactly once with real phone speech (`speaking=true`); injected 500 error stays through polling, words kept, Retry clears it; no overlapping polls; Stop confirmed by the real helper fence and kept when an older ACTIVE snapshot arrives afterwards; Continue resumes; unpaired view (`localhost`) explains 127.0.0.1 and setup; empty/malformed codes never sent; `NO_ACTIVE_CODE` answer; simulated preview completed with 0 laptop requests and spoken replies |
+| B — live lab audio (9 checks) | lab muted the Realtek speaker → phone report → **double tap = 1 approval request**, button disabled at once → independent read: unmuted, 64% → real test tone played → **real guarded Undo** approved on the phone → independent read: muted again → disarm restored unmuted 64%. WorkPad part of B did not run as intended: WorkPad had started **minimized** (launched from a hidden process), the lab "moved" the minimized window, and RescueBridge correctly answered "No supported off-screen window was found, so nothing was moved" |
+| Fix | `lab inject workpad-offscreen` now refuses a minimized or hidden WorkPad (`tests/test_lab.py::test_workpad_fault_is_refused_while_workpad_is_minimized`) |
+| C — live lab WorkPad (7 checks) | **7/7** after restoring WorkPad: off-screen at (2320,188) → phone report → approve → independent read: (450,170)–(1470,969) fully on screen, text fingerprint `ec8605d2…` unchanged → Stop confirmed → disarm; sound, mouse, WorkPad all as before |
+| Launcher | `scripts\host-console.ps1 -DataDir …RescueBridge-real` opened the host console in the laptop's browser; the new one-time link was consumed 1.1 s later |
+
+Session database for the window 22:22–22:25: REPAIR SET_AUDIO_ENDPOINT, TEST PLAY_TEST_TONE, **UNDO
+SET_AUDIO_ENDPOINT**, REPAIR MOVE_WINDOW — all `controlled_live_lab`, verified (the tone "not verified" by design);
+4 approvals; mission stop detail "helper fence 4 acknowledged". No person answered the tone question (Claude
+cannot hear the laptop). 104 tests pass after the lab fix.
+
 ## 6. Not run (unverified)
 
-- **Real Windows changes**: unmute and the test tone (5e) and a WorkPad window move under the live lab (5f)
-  were verified once each. Still unverified on real Windows: volume change, mouse primary button, the
-  click-test window (its Tk start-up bug is fixed and Tk start-up is tested, the window itself was not shown),
-  real Undo.
+- **Real Windows changes**: unmute, test tone, WorkPad window move and a guarded **Undo** are verified on
+  real Windows (5e, 5f, 5j). Still unverified: volume change (only unmute was needed), mouse primary button, and
+  the click-test window (its Tk start-up bug is fixed and tested; the window itself was not shown).
 - **Phone over Wi-Fi**: LAN HTTPS mode, certificate acceptance on Android. (USB transport: see 5c.)
 - **Phone voice**: one real spoken utterance by the owner was recognised (imperfectly) and processed (5c);
   speech synthesis ran on the phone (5d). Recognition accuracy across speakers/accents was not measured.
