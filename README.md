@@ -22,7 +22,7 @@ is in [`docs/VALIDATION.md`](docs/VALIDATION.md).
 | Real devices — the owner's laptop and Android phone only (by the owner, or by Claude at the owner's request) | real unmute, test tone, guarded Undo and off-screen WorkPad window move on Windows 11, approved on the phone; QR pairing, voice and approvals over USB |
 | Independent participants | **none** — nobody else has used it |
 | Not verified for real | mouse repair and click test, volume change, phone over Wi-Fi/LAN, screen readers, a third-party MCP Apps host |
-| Demo video | planned in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md); **not recorded** |
+| Demo video | https://youtu.be/xQFmAb1c6qg (1:57: part 1 on the owner's real phone, spoken and answered by the owner; part 2 a script-driven walkthrough in a phone-sized browser; how it was made: `docs/VALIDATION.md` 5m) |
 
 ## What it can repair (exactly three things)
 

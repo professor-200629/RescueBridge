@@ -379,6 +379,34 @@ Checks for this change (2026-10-23, this laptop):
 No web source changed (the bundle is unchanged). Not run: a real stall of a real Windows call, and any real
 change with this code (no live-lab session).
 
+### 5m. Demo video recording (2026-10-23; published https://youtu.be/xQFmAb1c6qg)
+
+Recorded by Claude at the owner's request, with the owner's scoped approval for the live lab (sound + WorkPad, 15
+minutes, one audible test tone; the mouse not touched). Uploaded to the owner's YouTube channel as Public with the
+title and description the owner approved.
+
+| Item | What was done |
+|---|---|
+| Mode | Real Windows (`start.ps1 -DataDir %LOCALAPPDATA%\RescueBridge-demo`, keyword interpreter), live lab `demo-video-1` armed for 15 minutes, scope audio + workpad; clean state recorded: 'Speaker (Realtek(R) Audio)' unmuted 66 %, WorkPad running, mouse not swapped |
+| Faults | `lab inject audio-mute` and `lab inject workpad-offscreen` (WorkPad to (2320,188)–(3340,987)) |
+| Phone side | The real web app in a phone-sized (390×844) headless Edge page on the same laptop, driven by a script and recorded by Playwright; the input was typed; both "Yes, it works" answers were tapped by the script (no person heard the tone) |
+| Laptop side | ffmpeg `gdigrab` capture of the work area (taskbar excluded); a plain dark topmost backdrop hid all other windows, and WorkPad was raised above it (z-order only); frames were checked for anything private |
+| Session database (read-only) | REPAIR `SET_AUDIO_ENDPOINT` `controlled_live_lab` APPLIED_STATE_VERIFIED; TEST `PLAY_TEST_TONE` APPLIED_STATE_NOT_VERIFIED (by design); REPAIR `MOVE_WINDOW` APPLIED_STATE_VERIFIED; 2 person results `works` from `ui_button` (the script); mission STOPPED, stop CONFIRMED ("helper fence 2 acknowledged"); 14 observations, all `controlled_live_lab` |
+| Afterwards | `lab disarm` (nothing left to restore), watchdog exited; independent read: speaker unmuted 66 %, mouse not swapped; RescueBridge stopped, backdrop and WorkPad closed |
+| Edit | Title card, the 84 s main section uncut and at normal speed (phone and laptop side by side), end card; Windows SAPI voice ("Microsoft David") with matching captions; on-screen notes say where the input was typed, where the tone played (not audible in the recording: no loopback audio device) and that the answers were tapped by the script. Total 2:13. Published as https://youtu.be/r5YrfoCfszw, later set to Unlisted |
+
+**Re-edit and real-phone part (2026-10-23 20:02–20:04 IST), after a review of the first version:**
+
+| Item | What was done |
+|---|---|
+| Live lab | Session `demo-phone-1b`, sound only, 10 minutes; clean state 'Speaker (Realtek(R) Audio)' unmuted 94 %, mouse not swapped. The owner was at the laptop with the phone |
+| Phone | The owner's Samsung SM-A366E over USB (`start.ps1 -Usb`, data folder `RescueBridge-real`); the expired session was re-paired by the owner through the host console; Do Not Disturb on |
+| Recording | Phone screen with `adb shell screenrecord` (file deleted from the phone afterwards); room sound with the laptop microphone |
+| What happened (session database, read-only) | the owner spoke "I can't hear anything" (`input_mode=voice`); REPAIR `SET_AUDIO_ENDPOINT` `controlled_live_lab` APPLIED_STATE_VERIFIED; TEST `PLAY_TEST_TONE` APPLIED_STATE_NOT_VERIFIED (by design); person result `works`, `ui_button`, tapped by the owner after hearing the tone |
+| Sound | Per 0.1 s windows the microphone recorded speech (the owner and the phone's spoken replies) but almost nothing during the tone's playback window: the laptop microphone's noise suppression removed the tone, so the video is **not** audible proof of it |
+| Afterwards | `lab disarm` (nothing left to restore); independent read: unmuted 94 %; RescueBridge stopped, USB mapping removed |
+| Edit (v3, 1:57) | Title 5.6 s; part 1 (real phone) 31.7 s with 6.0, 10.0 and 6.0 s cut; divider; part 2 = the first recording re-cut to 52.2 s with 3.6, 12.7, 2.0, 2.5 and 7.3 s cut; every cut labelled on screen, nothing sped up; first observed repair at 22 s; end card ties the zero-error result to the 24 simulated scenarios. Published as https://youtu.be/xQFmAb1c6qg; the first version set to Unlisted |
+
 ## 6. Current status by kind of evidence (2026-10-23)
 
 **Automated tests on the fixture OS adapter** (simulated Windows, simulated person in the evaluation): every
@@ -410,4 +438,4 @@ run. Protocol ready in `HUMAN_TRIAL_PROTOCOL.md`.
 - A third-party MCP Apps host rendering the recovery card (only RescueBridge's own simulator host).
 - Multi-monitor mixed DPI; other Windows builds; another laptop; a cold-cache fresh install.
 
-**Demo:** planned in `DEMO_SCRIPT.md`; **not recorded, no video URL.**
+**Demo video:** https://youtu.be/xQFmAb1c6qg (public, 1:57; how it was recorded: 5m).

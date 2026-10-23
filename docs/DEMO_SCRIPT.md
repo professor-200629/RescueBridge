@@ -1,6 +1,6 @@
 # Demo video script (under 3:00)
 
-Nothing has been recorded yet. Everything below uses steps that already worked on the owner's laptop
+Recorded and published on 2026-10-23: https://youtu.be/xQFmAb1c6qg (made as described in `VALIDATION.md` 5m: a short real-phone part, then the walkthrough in a phone-sized browser). Everything below uses steps that already worked on the owner's laptop
 (`VALIDATION.md` 5e–5h). **Do not speed up or cut footage to make it look faster or more automatic**; if you cut
 a wait, put "cut: N s removed" on screen. Keep the "Independent Alexa+ concept simulator" label and the mode badge
 (**Controlled Live Lab** during the faults) visible. No claims of Amazon endorsement.

@@ -70,11 +70,11 @@ must now be a recognised present-tense confirmation).
 2. (done 2026-10-21) phone over USB: QR pairing, voice, real unmute + tone (VALIDATION 5c–5e).
 3. (done 2026-10-21 evening) futuristic redesign (5g), MCP App recovery card + simulator MCP Apps host, shorter
    spoken replies (5h). 86 tests pass. Phone was unplugged at the last restart: re-link with `usb-link`.
-4. Owner: record the < 3 min video exactly per `docs/DEMO_SCRIPT.md` (keyword interpreter is fine; the local
-   LLM adds ~5–6 s per request).
+4. (done 2026-10-23) Demo video recorded by Claude at the owner's request and published on the owner's
+   YouTube channel: https://youtu.be/xQFmAb1c6qg (VALIDATION 5m; the first version https://youtu.be/r5YrfoCfszw is unlisted).
 5. (done 2026-10-21) Published at https://github.com/professor-200629/RescueBridge (public, Apache-2.0 detected,
-   `main`). The 2026-10-23 audit fixes are pushed too. Push later commits with `git push`. Video URL still
-   pending in `docs/SUBMISSION.md`.
+   `main`). The 2026-10-23 audit fixes are pushed too. Push later commits with `git push`. Video URL is in
+   `docs/SUBMISSION.md`.
 6. Optional, high value for "Impact": 1–2 family members try it for 10 min per `docs/HUMAN_TRIAL_PROTOCOL.md`
    (none has so far; do not describe RescueBridge as user-tested until this happens).
 7. Submit on Devpost yourself after re-reading the official rules page (deadline 24 Oct 00:30 IST).

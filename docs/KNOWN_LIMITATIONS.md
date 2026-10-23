@@ -51,7 +51,7 @@ done by the owner or by Claude at the owner's request. **No independent particip
 - Setup time for a fresh user (target < 10 minutes): only this developer machine was measured, with warm caches.
 - Accessibility: keyboard focus and contrast checked in one browser; no screen reader or assistive-technology
   user testing; no automated accessibility audit.
-- **Demo video:** planned in `DEMO_SCRIPT.md`, not recorded; no URL exists.
+- **Demo video** (https://youtu.be/xQFmAb1c6qg): part 1 is the owner's real phone, but part 2 uses a phone-sized browser on the laptop with answers tapped by a script; the test tone is not audible in either part (the laptop microphone filtered it out).
 
 ## Operational notes
 

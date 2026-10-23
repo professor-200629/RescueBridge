@@ -7,7 +7,7 @@
 | Track | Alexa+ (self-hosted MCP server, protocol 2025-11-25, Streamable HTTP) with an independent web simulator |
 | Mini challenges | none entered |
 | Code repository | https://github.com/professor-200629/RescueBridge (public, Apache-2.0 `LICENSE`) |
-| Demo video | `PENDING — not recorded` (public YouTube/Vimeo, < 3 min; plan in `DEMO_SCRIPT.md`) |
+| Demo video | https://youtu.be/xQFmAb1c6qg (public on YouTube, 1:57) |
 | Deadline | Friday 23 October 2026, 12:00 PT = 24 October 00:30 IST (target: 23 October 21:00 IST) |
 
 ## Rules recheck
@@ -78,7 +78,7 @@ RescueBridge's MCP server; any MCP host with a device-bound bearer token can cal
 - **Independent participants: none.** Not user-tested by anyone else.
 - **Not verified for real:** mouse repair and click test, volume change, Wi-Fi/LAN phone, screen readers, a
   third-party MCP Apps host.
-- **Demo video:** planned (`DEMO_SCRIPT.md`), not recorded.
+- **Demo video:** https://youtu.be/xQFmAb1c6qg. Real laptop under the live lab. Part 1: the owner's real phone over USB, the owner speaks, approves and answers (the laptop microphone filtered most of the test tone out). Part 2: phone app in a phone-sized browser, typed and tapped by a script. Synthetic voice; waits cut and labelled (`VALIDATION.md` 5m).
 
 ## Pending before submission
 
@@ -86,5 +86,5 @@ RescueBridge's MCP server; any MCP host with a device-bound bearer token can cal
 - [x] Real phone test over USB (QR pairing, microphone, speech) — `VALIDATION.md` 5c–5j. Wi-Fi/LAN not tested.
 - [x] Publish GitHub repository (public, Apache-2.0).
 - [x] Commit and push the 2026-10-23 audit fixes (`VALIDATION.md` 5k).
-- [ ] Record and upload the demo; add URL above.
+- [x] Record and upload the demo (public on YouTube).
 - [ ] Re-read the official pages on submission day.
