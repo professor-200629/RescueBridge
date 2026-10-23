@@ -1,6 +1,6 @@
 # Submission draft — Build, Ship, Shape: Amazon Developer Hackathon (Alexa+ track)
 
-**Nothing has been submitted.** URLs below are pending until Balu publishes them.
+**Submitted on Devpost on 23 October 2026, 21:33 IST** (confirmation email from Devpost): https://devpost.com/software/rescuebridge-fvari0. Track: Alexa+. Editable until the deadline, 24 October 2026, 00:30 IST.
 
 | Item | Value |
 |---|---|
@@ -87,4 +87,5 @@ RescueBridge's MCP server; any MCP host with a device-bound bearer token can cal
 - [x] Publish GitHub repository (public, Apache-2.0).
 - [x] Commit and push the 2026-10-23 audit fixes (`VALIDATION.md` 5k).
 - [x] Record and upload the demo (public on YouTube).
-- [ ] Re-read the official pages on submission day.
+- [x] Re-read the official pages on submission day (requirements, schedule: judging 27 Oct – 21 Nov, winners 4 Dec 01:30 IST).
+- [x] Submit on Devpost (https://devpost.com/software/rescuebridge-fvari0); English captions uploaded to the video.

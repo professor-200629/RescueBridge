@@ -17,7 +17,7 @@ qwen2.5:3b-instruct and llama3.2:3b (no downloads by this project). MCP SDK 2.3.
 | 1 Vertical slice | done for fixture (all 3 workflows, approve → apply → verify → person result) and real Windows read-only. Real Windows **changes** on the owner's laptop, approved on the owner's phone: unmute, tone, guarded Undo, WorkPad window move (VALIDATION 5e, 5f, 5j). Not on real Windows: mouse swap, click test, volume change. Phone: USB verified (QR pairing, voice, approvals; 5c–5e, 5j). Wi-Fi/LAN phone: not tested. |
 | 2 Domain engine + adapters | done: SQLite state, proposals/digests/approvals, fence with admission gate (5k), idempotent apply, reconciliation, guarded Undo, 3 recipes, real + fixture adapters, named-pipe helper |
 | 3 UX + model/voice | browser app done; phone microphone and speech used by the owner (5c, 5e); local LLM measured (tool-calling 0/8; schema interpretation 20/20 held-out v1 symptoms) |
-| 4 Validation + submission | tests/eval/bench/docs and live lab done; repo published, including the 2026-10-23 audit fixes; pending: video, independent participants (none so far), Devpost submission |
+| 4 Validation + submission | tests/eval/bench/docs and live lab done; repo published, including the 2026-10-23 audit fixes; video published; **submitted on Devpost 23 Oct 21:33 IST** (https://devpost.com/software/rescuebridge-fvari0); still none: independent participants |
 
 ## Last verified checks (2026-10-23)
 
@@ -77,7 +77,7 @@ must now be a recognised present-tense confirmation).
    `docs/SUBMISSION.md`.
 6. Optional, high value for "Impact": 1–2 family members try it for 10 min per `docs/HUMAN_TRIAL_PROTOCOL.md`
    (none has so far; do not describe RescueBridge as user-tested until this happens).
-7. Submit on Devpost yourself after re-reading the official rules page (deadline 24 Oct 00:30 IST).
+7. (done 2026-10-23 21:33 IST) Submitted on Devpost: https://devpost.com/software/rescuebridge-fvari0 (Alexa+ track). Judging 27 Oct – 21 Nov; winners 4 Dec 2026, 01:30 IST.
 
 ## Where things are
 
