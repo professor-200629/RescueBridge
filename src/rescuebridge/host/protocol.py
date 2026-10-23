@@ -50,6 +50,16 @@ class PlayToneParams(_Strict):
     endpoint_id: EndpointId
     duration_ms: int = Field(ge=200, le=2000)
     frequency_hz: int = Field(ge=300, le=1200)
+    # The approval covers this endpoint, unmuted, at this volume; the helper refuses to play otherwise.
+    expect_muted: Literal[False]
+    expect_volume_scalar: float
+
+    @field_validator("expect_volume_scalar")
+    @classmethod
+    def _finite_unit(cls, v: float) -> float:
+        if not math.isfinite(v) or not 0.0 <= v <= 1.0:
+            raise ValueError("volume must be a finite number in [0, 1]")
+        return v
 
 
 class MoveWindowParams(_Strict):

@@ -129,10 +129,15 @@ class CombinedInterpreter:
 
         m, ms = await self.llm.interpret(text, pending_question, timeout_s)
         k = keyword(text)
-        answer, conflict_a = _combine("yes" if m.yes else "no" if m.no else None, "yes" if k.yes else "no" if k.no else None)
+        if k.uncertain:  # tentative / conditional / question / intermittent / contradictory: no LLM label overrides it
+            answer, conflict_a = None, False
+        else:
+            answer, conflict_a = _combine("yes" if m.yes else "no" if m.no else None,
+                                          "yes" if k.yes else "no" if k.no else None)
         button, conflict_b = _combine(m.primary_button, k.primary_button)
         out = Interpretation(categories=m.categories, app_hint=m.app_hint or k.app_hint, stop=m.stop or k.stop,
                              undo=m.undo or k.undo, yes=answer == "yes", no=answer == "no", primary_button=button,
                              volume_percent=m.volume_percent if m.volume_percent is not None else k.volume_percent,
-                             ambiguous_answer=bool(pending_question) and (conflict_a or conflict_b))
+                             ambiguous_answer=bool(pending_question) and (conflict_a or conflict_b),
+                             uncertain=k.uncertain)
         return out, ms

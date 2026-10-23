@@ -52,10 +52,12 @@ Keyboard recovery is always available: with swapped buttons, Tab/Enter/Alt+Tab s
 
 ## Status of live-lab evidence
 
-One live-lab session so far: `rehearsal-1` on 2026-10-21, scope workpad, run by Claude at the owner's request
-(`VALIDATION.md` 5f): WorkPad pushed off-screen, recovered from the phone, verified, disarmed. Outside the lab,
-the owner muted the laptop by hand and repaired it from the phone (5e). Mouse swap and the click-test window
-are still unverified on real Windows.
+Two live-lab sessions so far, both on 2026-10-21 and run by Claude at the owner's request on the owner's laptop:
+`rehearsal-1`, scope workpad (`VALIDATION.md` 5f): WorkPad pushed off-screen, recovered from the phone, verified,
+disarmed; and the 22:19–22:27 re-test, scope audio + workpad (5j): mute → unmute, test tone, guarded Undo, WorkPad
+recovery, Stop, disarm. Outside the lab, the owner muted the laptop by hand and repaired it from the phone (5e).
+Mouse swap, volume change and the click-test window are still unverified on real Windows; no lab session has run
+since the 2026-10-23 audit fixes (5k).
 
 Note: lab commands must use the same data directory as the running backend, e.g.
 `rescuebridge.cli --data-dir <dir> lab arm …`, or the app will not show "Controlled Live Lab".

@@ -18,7 +18,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from rescuebridge.host.geometry import Rect
-from rescuebridge.host.system_ops import Endpoint, Monitor, OpsError, RawWindow, WindowIdentity
+from rescuebridge.host.system_ops import (
+    Admit,
+    Endpoint,
+    Monitor,
+    OpsError,
+    RawWindow,
+    ToneExpectation,
+    WindowIdentity,
+    tone_expectation_problem,
+)
 
 WORKPAD_TEXT = (
     "Interview prep notes (synthetic demo document)\n"
@@ -161,14 +170,30 @@ class FixtureOps:
         self.delays: dict[str, float] = {}
         self.after_delays: dict[str, float] = {}  # sleep AFTER the change: the reply arrives late
         self.before_hooks: dict[str, Callable[[FixtureState], None]] = {}
+        # One-shot pause points for deterministic concurrency tests: "observe:<kind>" runs at the start of a state
+        # read (e.g. a precondition check); "queue:<mutation>" runs where WindowsOps waits in its worker queue,
+        # i.e. before the admission gate.
+        self.pause_points: dict[str, Callable[[], None]] = {}
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.tones: list[dict[str, Any]] = []
 
     # --- helpers -------------------------------------------------------------------------------
-    def _mutation(self, name: str, args: dict[str, Any]) -> bool:
-        """Common prelude for mutating calls. Returns False when the call must be a silent no-op."""
+    def _pause(self, point: str) -> None:
+        fn = self.pause_points.pop(point, None)
+        if fn:
+            fn()
+
+    def _mutation(self, name: str, args: dict[str, Any], admit: Admit | None = None,
+                  verify: Callable[[], None] | None = None) -> bool:
+        """Common prelude for mutating calls, in the same order as WindowsOps' worker: queue wait, last-moment
+        precondition check, admission gate, then the change. Returns False when the call must be a silent no-op."""
         if name in self.delays:
             time.sleep(self.delays[name])
+        self._pause(f"queue:{name}")
+        if verify:
+            verify()
+        if admit:
+            admit()  # raises when fenced: nothing below runs, nothing is recorded or changed
         hook = self.before_hooks.pop(name, None)
         if hook:
             with self._lock:
@@ -184,6 +209,7 @@ class FixtureOps:
             time.sleep(self.after_delays[name])
 
     def _observe(self, kind: str) -> None:
+        self._pause(f"observe:{kind}")
         if kind in self.unobservable:
             raise OpsError("UNOBSERVABLE", f"fixture: {kind} state is unobservable")
 
@@ -198,8 +224,8 @@ class FixtureOps:
             return {"swap_effective": self.state.swap_effective, "swap_saved": self.state.swap_saved,
                     "mouse_present": self.state.mouse_present, "button_count": self.state.button_count}
 
-    def set_mouse_swap(self, swap: bool) -> None:
-        if self._mutation("set_mouse_swap", {"swap": swap}):
+    def set_mouse_swap(self, swap: bool, *, admit: Admit | None = None) -> None:
+        if self._mutation("set_mouse_swap", {"swap": swap}, admit):
             with self._lock:
                 self.state.swap_effective = swap
                 self.state.swap_saved = swap
@@ -219,8 +245,9 @@ class FixtureOps:
         with self._lock:
             return copy.deepcopy(self.state.endpoints)
 
-    def set_audio(self, endpoint_id: str, mute: bool | None, volume_scalar: float | None) -> None:
-        if not self._mutation("set_audio", {"endpoint_id": endpoint_id, "mute": mute, "volume": volume_scalar}):
+    def set_audio(self, endpoint_id: str, mute: bool | None, volume_scalar: float | None, *,
+                  admit: Admit | None = None) -> None:
+        if not self._mutation("set_audio", {"endpoint_id": endpoint_id, "mute": mute, "volume": volume_scalar}, admit):
             return
         with self._lock:
             for ep in self.state.endpoints:
@@ -234,8 +261,19 @@ class FixtureOps:
                 raise OpsError("ENDPOINT_CHANGED", "fixture: endpoint not found")
         self._after("set_audio")
 
-    def play_tone(self, duration_ms: int, frequency_hz: int) -> dict[str, Any]:
-        if not self._mutation("play_tone", {"duration_ms": duration_ms, "frequency_hz": frequency_hz}):
+    def play_tone(self, duration_ms: int, frequency_hz: int, *, admit: Admit | None = None,
+                  expect: ToneExpectation | None = None) -> dict[str, Any]:
+        def verify() -> None:
+            if expect is None:
+                return
+            with self._lock:
+                d = next((e for e in self.state.endpoints if e.is_default), None)
+                current = {"endpoint_id": d.id, "muted": d.muted, "volume_scalar": d.volume_scalar} if d else None
+            problem = tone_expectation_problem(current, expect.endpoint_id, expect.volume_scalar)
+            if problem:
+                raise OpsError(*problem)
+
+        if not self._mutation("play_tone", {"duration_ms": duration_ms, "frequency_hz": frequency_hz}, admit, verify):
             return {"played": False, "duration_ms": 0}
         record = {"duration_ms": duration_ms, "frequency_hz": frequency_hz, "at": int(time.time() * 1000)}
         self.tones.append(record)
@@ -269,8 +307,8 @@ class FixtureOps:
             w = self._find(hwnd)
             return (w.rect, w.frame) if w else None
 
-    def move_window(self, hwnd: int, rect: Rect) -> None:
-        if not self._mutation("move_window", {"hwnd": hwnd, "rect": list(rect)}):
+    def move_window(self, hwnd: int, rect: Rect, *, admit: Admit | None = None) -> None:
+        if not self._mutation("move_window", {"hwnd": hwnd, "rect": list(rect)}, admit):
             return
         with self._lock:
             w = self._find(hwnd)
@@ -293,8 +331,8 @@ class FixtureOps:
             return {"pid": w.pid, "hwnd": w.hwnd, "text_sha256": text_digest(self.state.workpad_text),
                     "text_chars": len(self.state.workpad_text), "unsaved": True}
 
-    def show_click_test(self, test_id: str) -> None:
-        if self._mutation("show_click_test", {"test_id": test_id}):
+    def show_click_test(self, test_id: str, *, admit: Admit | None = None) -> None:
+        if self._mutation("show_click_test", {"test_id": test_id}, admit):
             with self._lock:
                 self.state.click_tests.setdefault(test_id, {"status": "waiting"})
 

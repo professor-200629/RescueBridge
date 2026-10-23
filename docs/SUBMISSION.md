@@ -51,8 +51,9 @@ RescueBridge's MCP server; any MCP host with a device-bound bearer token can cal
 1. Windows 10/11, Python 3.13, uv, Node.js. `git clone <repo>`; `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1`.
 2. Safe simulation (no Windows changes): `powershell -ExecutionPolicy Bypass -File scripts\start.ps1 -Fixture -Scenario interview`.
    The host console opens; create a pairing code; open `http://localhost:8740/` in another browser profile
-   (or a phone in LAN mode), enter the code, accept on the host console; type "My clicks are wrong, I can't
-   hear anything and my notes disappeared".
+   (or an Android phone by USB cable: add `-Usb`; LAN/Wi-Fi mode exists but is untested on a real phone), enter
+   the code, accept on the host console; type "My clicks are wrong, I can't hear anything and my notes
+   disappeared". Without installing anything: the unpaired start page's **Try a simulated recovery**.
 3. Real Windows, read-only until you approve: `scripts\start.ps1` (same pairing). Nothing changes until you
    approve a proposal on the paired device.
 4. Automated: `scripts\check.ps1`; `rescuebridge eval --sets fixture,heldout`.
@@ -68,10 +69,22 @@ RescueBridge's MCP server; any MCP host with a device-bound bearer token can cal
   in a sandboxed frame after the `ui/initialize` handshake; an Edge end-to-end test checks it renders the live
   status and refreshes through `tools/call`. Approval deliberately stays on the paired phone, not in the card.
 
+## What the evidence is (do not overstate it in the description or video)
+
+- **Automated, fixture OS:** 141 tests (3 read real Windows state without changing it) and 30 scripted scenarios with a simulated person (`VALIDATION.md` 1, 3, 5k).
+- **Real devices, the owner's only** (one laptop, one phone; by the owner or by Claude at the owner's request):
+  unmute, test tone, guarded Undo and WorkPad window move on real Windows; QR pairing, voice and approvals on
+  the phone over USB (`VALIDATION.md` 5c–5j).
+- **Independent participants: none.** Not user-tested by anyone else.
+- **Not verified for real:** mouse repair and click test, volume change, Wi-Fi/LAN phone, screen readers, a
+  third-party MCP Apps host.
+- **Demo video:** planned (`DEMO_SCRIPT.md`), not recorded.
+
 ## Pending before submission
 
 - [x] Live-lab runs for real changes: audio (incl. Undo) and WorkPad (`VALIDATION.md` 5f, 5j). Mouse not run.
 - [x] Real phone test over USB (QR pairing, microphone, speech) — `VALIDATION.md` 5c–5j. Wi-Fi/LAN not tested.
 - [x] Publish GitHub repository (public, Apache-2.0).
+- [x] Commit and push the 2026-10-23 audit fixes (`VALIDATION.md` 5k).
 - [ ] Record and upload the demo; add URL above.
 - [ ] Re-read the official pages on submission day.

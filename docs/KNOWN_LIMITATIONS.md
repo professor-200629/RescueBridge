@@ -1,61 +1,66 @@
 # Known limitations
 
-Status as of 2026-10-20 (see `VALIDATION.md` for evidence). "Verified" means observed at runtime, not just
-code inspection.
+Status as of 2026-10-23 (evidence: `VALIDATION.md`, summary in its section 6). "Verified" means observed at
+runtime, not just code inspection. All real-device checks were on **one laptop and one phone, both the owner's**,
+done by the owner or by Claude at the owner's request. **No independent participant has used RescueBridge.**
 
-## Real (verified at runtime on the test laptop)
+## Verified on the owner's real laptop and phone
 
 - Real Windows **observation** through the separate helper process over the named pipe: mouse mapping
   (effective + saved), default playback endpoint (name, mute, volume) via Core Audio, monitors with DPI, and
-  eligible top-level windows. Observed in the browser flow and in `tests/test_windows_readonly.py`.
+  eligible top-level windows (`tests/test_windows_readonly.py` and the phone flows).
+- Real Windows **changes**, each approved on the phone: unmute (`SetMute`), the test tone (`PlaySound`, played
+  once), a guarded **Undo** of the unmute, and moving the off-screen WorkPad window back (`SetWindowPos`, text
+  unchanged) — `VALIDATION.md` 5e, 5f, 5j. The window move and the Undo ran under the Controlled Live Lab.
 - Browser → BFF → real MCP client (initialize/tools-list/tools-call, protocol 2025-11-25, Streamable HTTP) →
-  MCP server → helper, in a real browser (Claude desktop app's built-in Chromium pane), against both the
-  fixture and the real helper.
-- Pairing, host console, Stop with helper fence acknowledgement against the real helper.
+  MCP server → helper, against both the fixture and the real helper.
+- Phone over **USB cable** (`-Usb`) on the owner's Samsung SM-A366E (Android 16): QR pairing, the owner's spoken
+  requests through Chrome speech recognition, approvals, spoken replies (5c, 5e). The review repairs (persistent
+  errors, first-reply speech, stale-snapshot rejection, pairing validation, setup guidance) were checked in the
+  phone's real Chrome **driven by Claude over DevTools**, not by a person using the phone (5j). USB mode needs a
+  cable, USB debugging and adb installed by the person: a demo and setup transport, not the end-state channel.
+- Pairing, host console, Stop with the real helper's fence acknowledgement.
 - Named-pipe DACL (current user only), helper first-instance protection, HMAC authentication, fence rejection
-  in a separate helper process (fixture-backed).
+  in a separate helper process (fixture-backed helper over the real pipe).
 
-## Simulated (fixture) only
+## Fixture (simulated) only
 
-- **Every repair** (unmute/volume, mouse primary button, window move), test tone, click test, Undo, endpoint
-  switch / monitor unplug / HWND reuse races, OS failures, success-without-change, timeouts, restart
-  reconciliation. These ran through the full stack with the fixture OS adapter, not on real Windows.
+- Mouse primary-button repair and its click test, volume changes, endpoint switch / monitor unplug / HWND reuse
+  races, OS failures, success-without-change, timeouts, restart reconciliation, and every Stop/fence race
+  (`tests/test_stop_fence.py`). They ran through the full stack with the fixture OS adapter.
+- The 2026-10-23 audit fixes (`VALIDATION.md` 5k): the Stop admission gate, the confirmation rule and the tone
+  volume binding are proven on the fixture adapter. On real Windows only the audio gate was exercised, with a
+  call that writes nothing; no real change, tone or window move was made with the new code.
 - The 30 evaluation scenarios use a **simulated person** (scripted answers), not real people.
-
-## Unverified (code exists, not yet run for real)
-
-- **Review repairs on a real phone** (persistent errors, first-reply speech, stale-snapshot rejection, pairing
-  validation, setup guidance): verified in headless Edge with network fault injection and a speech substitute,
-  not yet on the owner's phone with real audio.
 - **Simulated preview** is a replay of one recorded fixture conversation (sound only), not a live engine; other
   phrasings are answered with a hint. Regenerate with `scripts\make_preview_data.py` when replies change (a test
   fails if the recording no longer matches the fixture engine).
 
-- **MCP App card in other hosts:** verified only in RescueBridge's own simulator host (a single sandboxed
-  iframe, a simplification of the spec's separate-origin sandbox proxy). Not yet opened in a third-party MCP
-  Apps host; the MCP endpoint is loopback-only and needs a device token (`rescuebridge.cli mcp-token`).
+## Unverified (code exists, not run for real)
 
-- Real Windows **changes** not yet run: `SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)`, Core Audio
-  `SetMasterVolumeLevelScalar`, the click-test window. (Verified on real Windows: Core Audio `SetMute`, the
-  `winsound.PlaySound` tone, `SetWindowPos` on WorkPad, and a guarded Undo of the unmute — `VALIDATION.md` 5e, 5f,
-  5j.) The mouse repair needs a person at the laptop for its click test.
-- The live lab refuses to push a **minimized** WorkPad off-screen (that would create no real fault). Launching
-  WorkPad from a hidden process starts it minimized; start it from a normal terminal.
+- Real Windows `SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)`, Core Audio `SetMasterVolumeLevelScalar`, and the
+  click-test window. The mouse repair needs a person at the laptop for its click test.
 - **Phone over Wi-Fi**: LAN HTTPS mode and self-signed certificate acceptance were not tested on a real phone.
   LAN mode was not started on this laptop because Windows may show a firewall prompt that is the owner's
   decision.
-- **Phone over USB cable** (`-Usb`, added 2026-10-21): the transport was verified on the owner's Samsung
-  SM-A366E (Android 16): the phone's own `curl` fetched `/api/health` through `adb reverse` (HTTP 200), and the
-  mapping was restored automatically 10 s after it was removed. See `VALIDATION.md` for what the owner then did
-  on the phone. USB mode needs a cable, USB debugging, and adb installed by the person, so it is a demo and
-  setup transport, not the end-state product channel.
-- **Microphone and speech** on a real phone (Samsung/Chrome speech recognition) — see `VALIDATION.md`.
-- **Voice in a real browser**: SpeechRecognition / speechSynthesis paths were not exercised (the automated
-  browser has no microphone). Typing paths were.
+- **MCP App card in other hosts:** verified only in RescueBridge's own simulator host (a single sandboxed
+  iframe, a simplification of the spec's separate-origin sandbox proxy). Not opened in a third-party MCP Apps
+  host; the MCP endpoint is loopback-only and needs a device token (`rescuebridge.cli mcp-token`).
+- Speech recognition accuracy across speakers and accents (one owner, a few utterances, one misrecognised).
 - Per-monitor DPI with mixed-DPI multi-monitor setups (only one 120-DPI display available).
-- Setup time for a fresh user (target < 10 minutes): only this developer machine was measured.
-- Accessibility: keyboard focus preservation and contrast were checked manually in one browser; no screen
-  reader or assistive-technology user testing; no automated accessibility audit.
+- Setup time for a fresh user (target < 10 minutes): only this developer machine was measured, with warm caches.
+- Accessibility: keyboard focus and contrast checked in one browser; no screen reader or assistive-technology
+  user testing; no automated accessibility audit.
+- **Demo video:** planned in `DEMO_SCRIPT.md`, not recorded; no URL exists.
+
+## Operational notes
+
+- The live lab refuses to push a **minimized** WorkPad off-screen (that would create no real fault). Launching
+  WorkPad from a hidden process starts it minimized; start it from a normal terminal.
+- Stop cannot interrupt an OS call that was already admitted (for example a running `PlaySound`, 1.2 s):
+  it finishes, and the fence acknowledgement names it as in flight.
+- A tone approved at one volume is never played at another: if the volume, mute or device changed, nothing
+  plays and a fresh test proposal must be approved.
 
 ## Unsupported by design
 
@@ -75,6 +80,10 @@ code inspection.
 - Answer interpretation for the LLM path uses an agreement policy (designed after seeing held-out v1
   failures). When interpreters disagree the person is asked to use the buttons.
 - English only. Claim guard and polarity checks are English keyword rules.
+- The confirmation rule is deliberately conservative: a question, hedge ("maybe", "I think"), condition,
+  "sometimes", or a yes-and-no answer is treated as unclear and asked again, so some genuine answers need a
+  second "yes"/"no" or a button tap. Answers in words the rule does not know ("absolutely") are not counted;
+  the issue keeps waiting for a recognised answer or a button.
 - Free tool-calling by the 3B models (`ollama-tools`) is unreliable (0/8 correct first calls).
 
 ## Known defects / rough edges

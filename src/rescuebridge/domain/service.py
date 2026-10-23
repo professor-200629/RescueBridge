@@ -28,6 +28,7 @@ import anyio
 
 from rescuebridge.config import Settings
 from rescuebridge.domain import recipes
+from rescuebridge.domain.confirm import confirmation_polarity
 from rescuebridge.domain.enums import (
     ADAPTER_MODE_LABEL,
     SYMPTOM_TO_KIND,
@@ -49,6 +50,7 @@ from rescuebridge.domain.enums import (
 from rescuebridge.domain.store import Store
 from rescuebridge.domain.transitions import TransitionError, check
 from rescuebridge.host.client import HelperTimeoutError, HelperUnavailableError, HostClient
+from rescuebridge.host.system_ops import TONE_VOLUME_TOLERANCE
 from rescuebridge.ids import digest, new_id, now_ms
 
 log = logging.getLogger("rescuebridge.service")
@@ -69,9 +71,6 @@ UNSUPPORTED_TEXT = {
         "device, off-screen window). No changes will be made for it."),
 }
 
-AFFIRM = re.compile(r"\b(yes|yeah|yep|yup|heard|hear it|i can hear|works|working|it worked|can see|i see it|"
-                    r"visible|fine now|correct|right one)\b", re.I)
-NEGATE = re.compile(r"\b(no|nope|not|didn'?t|did not|don'?t|can'?t|cannot|still|nothing|never|wrong|broken)\b", re.I)
 
 
 class DomainError(Exception):
@@ -525,8 +524,10 @@ class RecoveryService:
                 return "default playback device changed since the proposal"
             if d["muted"] != pre["muted"]:
                 return "mute state changed since the proposal"
-            if "volume_scalar" in pre and abs(d["volume_scalar"] - pre["volume_scalar"]) > 0.02:
-                return "volume changed since the proposal"
+            tolerance = TONE_VOLUME_TOLERANCE if a == ActionKind.PLAY_TEST_TONE.value else 0.02
+            if "volume_scalar" in pre and abs(d["volume_scalar"] - pre["volume_scalar"]) > tolerance:
+                return (f"volume changed from the approved {round(pre['volume_scalar'] * 100)}% to "
+                        f"{round(d['volume_scalar'] * 100)}% since the proposal")
         elif a == ActionKind.MOVE_WINDOW.value:
             w = facts["windows"]
             if w["monitors_fingerprint"] != pre["monitors_fingerprint"]:
@@ -595,6 +596,8 @@ class RecoveryService:
                 elif p["kind"] != ProposalKind.TEST.value:
                     self._set_state(issue, IssueState.APPLYING, f"executing {p['action']}")
             if problem:
+                if p["kind"] == ProposalKind.TEST.value:
+                    return await self._retest_after_rejection(issue, mission, op["id"], problem)
                 return await self._after_rejection(principal, issue, mission, op["id"], problem)
             if no_change:
                 if p["kind"] == ProposalKind.REPAIR.value:
@@ -607,6 +610,29 @@ class RecoveryService:
                 return {"operation": self.operation_view(self.store.get("operations", op["id"]) or op),
                         "note": "The requested state was already present on fresh observation; nothing was changed."}
             return await self._execute(op, p, mission, issue)
+
+    async def _retest_after_rejection(self, issue: dict[str, Any], mission: dict[str, Any], op_id: str,
+                                      problem: str) -> dict[str, Any]:
+        """An approved test tone no longer matches the output it was approved for (device, mute or volume). Nothing
+        was played and nothing is adjusted to make the old approval fit: a fresh test for the current settings is
+        offered and needs its own approval."""
+        out: dict[str, Any] = {"operation": self.operation_view(self.store.get("operations", op_id) or {}),
+                               "rejected_because": problem, "test_not_played": True}
+        issue = self.store.get("issues", issue["id"]) or issue
+        if issue["state"] != IssueState.AWAITING_USER_CONFIRMATION.value:
+            out["note"] = "The test tone was not played: " + problem + "."
+            return out
+        facts, observations, problems = await self._observe_kinds(mission, issue["id"], ["audio"])
+        plan = None if problems else recipes.tone_plan(facts)
+        if plan is None:
+            out["note"] = (f"The test tone was not played: {problem}. No new test is offered because the output "
+                           "could not be observed or is muted now.")
+            return out
+        proposal = self._create_proposal(mission, issue, plan, [o["id"] for o in observations])
+        out["new_test_proposal"] = self.proposal_view(proposal)
+        out["note"] = (f"The test tone was not played: {problem}. A new test for the current settings is ready and "
+                       "needs a new approval.")
+        return out
 
     async def _after_rejection(self, principal: Principal, issue: dict[str, Any], mission: dict[str, Any],
                                op_id: str, problem: str) -> dict[str, Any]:
@@ -646,7 +672,10 @@ class RecoveryService:
                                                        "outcome": outcome.value, "error": f"{code}: {msg}",
                                                        "execution_result": resp.get("error")})
             if p["kind"] == ProposalKind.TEST.value:
-                return {"operation": self.operation_view(self.store.get("operations", op["id"]) or op)}
+                if code in REVISABLE_ERRORS:  # the helper refused at the playback boundary: offer a fresh test
+                    return await self._retest_after_rejection(issue, mission, op["id"], f"helper refused: {msg}")
+                return {"operation": self.operation_view(self.store.get("operations", op["id"]) or op),
+                        "test_not_played": True}
             if code == "FENCED":
                 issue = self.store.get("issues", issue["id"]) or issue
                 if issue["state"] != IssueState.STOPPED.value:
@@ -804,12 +833,12 @@ class RecoveryService:
             if (not msg or msg["role"] != "user" or msg["device_id"] != principal.device_id
                     or msg["mission_id"] not in (mission["id"], None) or msg["created_at"] < (entered.get("at") or 0)):
                 raise DomainError("BAD_INPUT", "the result must cite the person's own utterance made after the question")
-            text = msg["text"]
-            pos, neg = bool(AFFIRM.search(text)), bool(NEGATE.search(text))
-            if value == UserResult.WORKS and (not pos or neg):
-                raise DomainError("AMBIGUOUS", "the utterance does not clearly confirm success; ask the person to use "
-                                  "the Yes/No buttons")
-            if value == UserResult.STILL_BROKEN and not neg:
+            # Authoritative, whatever interpreter (keyword or LLM) proposed the label: only a clear answer counts.
+            polarity = confirmation_polarity(msg["text"])
+            if value == UserResult.WORKS and polarity != "yes":
+                raise DomainError("AMBIGUOUS", "the utterance is not a clear yes (tentative, conditional, a question, "
+                                  "intermittent or contradictory); ask a short yes/no question or use the buttons")
+            if value == UserResult.STILL_BROKEN and polarity != "no":
                 raise DomainError("AMBIGUOUS", "the utterance does not clearly report failure; ask again")
         op = self.store.one("SELECT id FROM operations WHERE issue_id = ? AND kind = 'REPAIR' ORDER BY intent_at DESC LIMIT 1",
                             (issue["id"],))

@@ -14,6 +14,16 @@ Status: working prototype built for the *Build, Ship, Shape: Amazon Developer Ha
 Read [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) before relying on it. What was actually tested
 is in [`docs/VALIDATION.md`](docs/VALIDATION.md).
 
+### What has been verified (2026-10-23)
+
+| Kind of evidence | Status |
+|---|---|
+| Automated tests (fixture OS adapter; scripted person in the scenario evaluation) | 141 tests pass (3 of them read real Windows state without changing it); 24/24 fixture scenarios and 2/6 held-out with the keyword interpreter, 0 incorrect changes, 0 false "fixed" claims |
+| Real devices — the owner's laptop and Android phone only (by the owner, or by Claude at the owner's request) | real unmute, test tone, guarded Undo and off-screen WorkPad window move on Windows 11, approved on the phone; QR pairing, voice and approvals over USB |
+| Independent participants | **none** — nobody else has used it |
+| Not verified for real | mouse repair and click test, volume change, phone over Wi-Fi/LAN, screen readers, a third-party MCP Apps host |
+| Demo video | planned in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md); **not recorded** |
+
 ## What it can repair (exactly three things)
 
 | Workflow | Observes | Proposes (only after a fresh observation) | Then verifies |
@@ -117,8 +127,8 @@ on the laptop. `stop.ps1` removes the mapping. Manual control: `rescuebridge.cli
 warning for that address that you may choose to accept. Windows may ask whether Python may use the network:
 choose **Private networks** only. RescueBridge never edits firewall rules. Guest/hotel Wi-Fi often blocks
 device-to-device traffic (client isolation); use a home/hotspot network. **The Wi-Fi path has not yet been
-tested on a real phone**; the USB path has (QR pairing, voice, a real unmute approved on the phone) — see
-`docs/VALIDATION.md`.
+tested on a real phone**; the USB path has, on the owner's phone (QR pairing, voice, real repairs approved on
+the phone) — see `docs/VALIDATION.md`.
 
 ### Voice
 

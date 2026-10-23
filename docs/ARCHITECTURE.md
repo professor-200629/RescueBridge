@@ -55,14 +55,18 @@
    if the state already matches → `NO_CHANGE_NEEDED`; if preconditions changed → `REJECTED_OR_EXPIRED` and a
    revised proposal (new approval needed); otherwise records **intent** + consumes the approval in one
    transaction, then sends `execute(revision)` to the helper.
-6. Helper: write lock → fence check (`revision < fence` → `FENCED`) → its own precondition check (endpoint
-   still default, mute/volume as expected) → Core Audio call → reads back.
+6. Helper: write lock → early fence check (`revision < fence` → `FENCED`) → its own precondition check (endpoint
+   still default, mute/volume as expected) → the OS worker runs the call: **admission** (`admit()`: fence
+   checked again, atomically with fence advancement) immediately before the Core Audio call → reads back.
 7. Backend takes a **fresh after-observation**: `APPLIED_STATE_VERIFIED` only if the observed state matches;
    success-without-change → `APPLIED_STATE_NOT_VERIFIED`; timeout → `OUTCOME_UNKNOWN` + reconciliation (no
    blind retry).
 8. `verify_recovery` re-observes; issue → `AWAITING_USER_CONFIRMATION` with a test-tone proposal (separate
-   approval). Only the person's **Yes** (button, or utterance that passes a polarity check) makes it
-   `RESOLVED`. "No" → `UNRESOLVED` with manual next steps.
+   approval; bound to that endpoint, unmuted, at the observed volume — re-checked where the tone is played, and
+   a mismatch plays nothing and offers a fresh test). Only the person's **Yes** (button, or an utterance that is
+   a clear yes under `domain/confirm.py`, enforced by the service) makes it `RESOLVED`. "No" → `UNRESOLVED` with
+   manual next steps. A hedged, conditional, questioning, intermittent or contradictory answer is recorded as
+   `unsure` and asked again.
 
 ## Authority model
 
@@ -76,10 +80,14 @@
 - **Fence / Stop:** `hosts.permission_revision` increments on Stop and device revocation. Proposals carry the
   revision; approvals are valid only at the current revision; the helper rejects writes whose revision is below
   its fence. Stop: bump revision + revoke unused proposals (one transaction, no wait for the mutation lock) →
-  "Stop requested" → helper fence ack → "Stop confirmed" (or `HELPER_UNREACHABLE` = status unknown). A write
-  already inside its OS call may finish; the ack reports its operation id.
-- **Serialization:** backend per-host `anyio.Lock` for apply; helper write lock; queued helper writes re-check the
-  fence after acquiring the lock.
+  "Stop requested" → helper fence ack → "Stop confirmed" (or `HELPER_UNREACHABLE` = status unknown). Only a
+  write already **admitted** to its OS call may finish; the ack names it (`in_flight_operation_id`, phase
+  `ADMITTED`) and lists queued or still-observing operations separately (`pending_operation_ids`), which can no
+  longer be admitted.
+- **Serialization:** backend per-host `anyio.Lock` for apply; helper write lock; the helper's `_fence_lock` makes
+  fence advancement and admission mutually exclusive. Admission runs in the execution context of the OS call
+  (the COM worker thread for real Windows), so a wait in the worker queue cannot outlast a Stop. Phases per
+  operation: `QUEUED` → `OBSERVING` → `ADMITTED` → `COMPLETED`, or `REJECTED_BY_FENCE` / `NOT_ADMITTED`.
 - **Restart:** approved-but-unused proposals → `REVOKED`, pending → `EXPIRED`, affected issues → `REPORTED`
   (re-inspect); operations not `FINISHED` are reconciled from a fresh observation and never re-executed.
 - **Undo:** a new `UNDO` proposal (needs approval) only if the current state equals the operation's expected

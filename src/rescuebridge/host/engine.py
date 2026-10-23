@@ -3,10 +3,18 @@
 Enforces, independently of the backend:
 - the fixed request schema (`protocol.parse_request`),
 - an execution fence: writes carrying an authority revision older than the fence are rejected,
-- serialized writes (one at a time); queued writes re-check the fence after acquiring the lock,
+- serialized writes (one at a time),
 - precondition checks immediately before each change (observed state, endpoint identity, window target
   identity, monitor configuration),
 - short-lived helper-issued window target references bound to HWND + process identity.
+
+Stop/fence admission. Every mutation receives an `admit` gate that the OS layer calls in the execution context
+that performs the change (for WindowsOps: on its worker thread, after any queue wait), immediately before the
+OS call. The gate and fence advancement take the same lock, so they are strictly ordered: a fence acknowledged
+before admission makes the gate refuse; an operation admitted before the fence is reported in the
+acknowledgement as `in_flight_operation_id` (its single OS call may finish). Operations that are only queued or
+still checking preconditions are never reported as in flight; they are listed as `pending_operation_ids` and
+will be refused at admission.
 """
 
 from __future__ import annotations
@@ -16,6 +24,7 @@ import os
 import secrets
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -36,13 +45,32 @@ from rescuebridge.host.protocol import (
     ok,
     parse_request,
 )
-from rescuebridge.host.system_ops import OpsError, RawWindow, SystemOps
+from rescuebridge.host.system_ops import (
+    OpsError,
+    RawWindow,
+    SystemOps,
+    ToneExpectation,
+    tone_expectation_problem,
+)
 
 log = logging.getLogger("rescuebridge.helper")
 
 SHELL_CLASSES = frozenset({"Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "NotifyIconOverflowWindow"})
 TARGET_REF_TTL_S = 15 * 60
 VOLUME_TOLERANCE = 0.02
+# Operation phases inside the helper (only ADMITTED means "the OS call may be underway").
+QUEUED, OBSERVING, ADMITTED, COMPLETED, NOT_ADMITTED, FENCED_OUT = (
+    "QUEUED", "OBSERVING", "ADMITTED", "COMPLETED", "NOT_ADMITTED", "REJECTED_BY_FENCE")
+_PHASE_HISTORY = 64
+
+
+class Fenced(OpsError):
+    """Raised by the admission gate: the operation's authority is older than the fence."""
+
+    def __init__(self, fence: int, revision: int) -> None:
+        super().__init__("FENCED", "authority revision is older than the helper fence (Stop or revocation)")
+        self.fence = fence
+        self.revision = revision
 
 
 @dataclass
@@ -62,9 +90,10 @@ class HelperEngine:
         self.mode = ops.mode
         self._clock = clock
         self._fence = 0
-        self._fence_lock = threading.Lock()
+        self._fence_lock = threading.Lock()  # guards _fence, _admitted and _phases; never held across an OS call
         self._write_lock = threading.Lock()
-        self._in_flight: str | None = None
+        self._admitted: str | None = None  # passed the admission gate; its OS call may be underway
+        self._phases: dict[str, str] = {}
         self._refs: dict[str, TargetRef] = {}
         self._refs_lock = threading.Lock()
         self.started_at = int(self._clock() * 1000)
@@ -94,16 +123,40 @@ class HelperEngine:
     # ------------------------------------------------------------------------------------------
     def _health(self) -> dict[str, Any]:
         with self._fence_lock:
-            fence = self._fence
-        return {"mode": self.mode, "fence": fence, "pid": os.getpid(), "in_flight_operation_id": self._in_flight,
+            fence, admitted = self._fence, self._admitted
+        return {"mode": self.mode, "fence": fence, "pid": os.getpid(), "in_flight_operation_id": admitted,
                 "started_at": self.started_at}
 
     def _set_fence(self, revision: int) -> dict[str, Any]:
-        with self._fence_lock:
+        with self._fence_lock:  # same lock as admission: the two are strictly ordered
             self._fence = max(self._fence, revision)
-            fence = self._fence
-        # A write already inside its atomic OS call may finish; it is reported so it can be recorded.
-        return {"fence": fence, "in_flight_operation_id": self._in_flight, "acknowledged_at": int(self._clock() * 1000)}
+            fence, admitted = self._fence, self._admitted
+            pending = [op for op, ph in self._phases.items() if ph in (QUEUED, OBSERVING)]
+        # Only an operation admitted before this point may still change state (its OS call may finish). Queued or
+        # precondition-checking operations are refused when they reach admission.
+        return {"fence": fence, "in_flight_operation_id": admitted, "in_flight_phase": ADMITTED if admitted else None,
+                "pending_operation_ids": pending, "acknowledged_at": int(self._clock() * 1000)}
+
+    def _set_phase(self, operation_id: str, phase: str) -> None:
+        """Caller holds _fence_lock."""
+        self._phases[operation_id] = phase
+        while len(self._phases) > _PHASE_HISTORY:
+            self._phases.pop(next(iter(self._phases)))
+
+    def _admission_gate(self, revision: int, operation_id: str) -> Callable[[], None]:
+        def admit() -> None:
+            with self._fence_lock:
+                if revision < self._fence:
+                    self._set_phase(operation_id, FENCED_OUT)
+                    raise Fenced(self._fence, revision)
+                self._admitted = operation_id
+                self._set_phase(operation_id, ADMITTED)
+
+        return admit
+
+    def _fenced_error(self, fence: int, revision: int) -> dict[str, Any]:
+        return err(self.mode, "FENCED", "authority revision is older than the helper fence (Stop or revocation)",
+                   fence=fence, revision=revision)
 
     # ------------------------------------------------------------------------------------------
     def _observe(self, req: ObserveRequest) -> dict[str, Any]:
@@ -215,39 +268,52 @@ class HelperEngine:
     # ------------------------------------------------------------------------------------------
     def _execute(self, req: ExecuteRequest) -> dict[str, Any]:
         params = req.typed_params()
+        op_id = req.operation_id
+        with self._fence_lock:
+            self._set_phase(op_id, QUEUED)
         with self._write_lock:  # serialize writes; queued writes wait here
             with self._fence_lock:
                 fence = self._fence
-            if req.revision < fence:
-                return err(self.mode, "FENCED", "authority revision is older than the helper fence (Stop or revocation)",
-                           fence=fence, revision=req.revision)
-            self._in_flight = req.operation_id
+                if req.revision < fence:  # early refusal; the authoritative check is the admission gate
+                    self._set_phase(op_id, FENCED_OUT)
+                    return self._fenced_error(fence, req.revision)
+                self._set_phase(op_id, OBSERVING)
+            admit = self._admission_gate(req.revision, op_id)
             try:
                 if isinstance(params, SetMouseParams):
-                    return self._exec_mouse(params)
+                    return self._exec_mouse(params, admit)
                 if isinstance(params, SetAudioParams):
-                    return self._exec_audio(params)
+                    return self._exec_audio(params, admit)
                 if isinstance(params, PlayToneParams):
-                    return self._exec_tone(params)
+                    return self._exec_tone(params, admit)
                 if isinstance(params, MoveWindowParams):
-                    return self._exec_move(params)
+                    return self._exec_move(params, admit)
                 if isinstance(params, ShowClickTestParams):
-                    self.ops.show_click_test(params.test_id)
+                    self.ops.show_click_test(params.test_id, admit=admit)
                     return ok(self.mode, {"executed": True, "test_id": params.test_id})
                 return err(self.mode, "BAD_REQUEST", "unsupported action")
+            except Fenced as f:
+                return self._fenced_error(f.fence, f.revision)
             finally:
-                self._in_flight = None
+                with self._fence_lock:
+                    if self._admitted == op_id:
+                        self._admitted = None
+                    phase = self._phases.get(op_id)
+                    if phase == ADMITTED:
+                        self._set_phase(op_id, COMPLETED)
+                    elif phase == OBSERVING:
+                        self._set_phase(op_id, NOT_ADMITTED)  # e.g. a precondition failed: nothing was changed
 
-    def _exec_mouse(self, p: SetMouseParams) -> dict[str, Any]:
+    def _exec_mouse(self, p: SetMouseParams, admit: Callable[[], None]) -> dict[str, Any]:
         before = self.ops.mouse_state()
         if bool(before["swap_effective"]) != p.expect_swap:
             return err(self.mode, "PRECONDITION_FAILED", "button mapping changed since it was observed",
                        current=before)
-        self.ops.set_mouse_swap(p.swap)
+        self.ops.set_mouse_swap(p.swap, admit=admit)
         after = self.ops.mouse_state()
         return ok(self.mode, {"executed": True, "before": before, "after": after})
 
-    def _exec_audio(self, p: SetAudioParams) -> dict[str, Any]:
+    def _exec_audio(self, p: SetAudioParams, admit: Callable[[], None]) -> dict[str, Any]:
         facts = self._audio_facts()
         d = facts["default"]
         if d is None or d["endpoint_id"] != p.endpoint_id:
@@ -256,20 +322,21 @@ class HelperEngine:
         if d["muted"] != p.expect_muted or abs(d["volume_scalar"] - p.expect_volume_scalar) > VOLUME_TOLERANCE:
             return err(self.mode, "PRECONDITION_FAILED", "endpoint mute/volume changed since it was observed",
                        current_default=d)
-        self.ops.set_audio(p.endpoint_id, p.mute, p.volume_scalar)
+        self.ops.set_audio(p.endpoint_id, p.mute, p.volume_scalar, admit=admit)
         after = self._audio_facts()["default"]
         return ok(self.mode, {"executed": True, "before": d, "after": after})
 
-    def _exec_tone(self, p: PlayToneParams) -> dict[str, Any]:
+    def _exec_tone(self, p: PlayToneParams, admit: Callable[[], None]) -> dict[str, Any]:
         d = self._audio_facts()["default"]
-        if d is None or d["endpoint_id"] != p.endpoint_id:
-            return err(self.mode, "ENDPOINT_CHANGED", "default playback endpoint changed", current_default=d)
-        if d["muted"]:
-            return err(self.mode, "PRECONDITION_FAILED", "endpoint is muted; tone would be inaudible", current_default=d)
-        played = self.ops.play_tone(p.duration_ms, p.frequency_hz)
+        problem = tone_expectation_problem(d, p.endpoint_id, p.expect_volume_scalar)
+        if problem:
+            return err(self.mode, problem[0], problem[1], current_default=d)
+        # The OS layer re-checks the same expectation where the tone is actually played (after any queue wait).
+        played = self.ops.play_tone(p.duration_ms, p.frequency_hz, admit=admit,
+                                    expect=ToneExpectation(p.endpoint_id, p.expect_volume_scalar))
         return ok(self.mode, {"executed": True, "endpoint": d, **played})
 
-    def _exec_move(self, p: MoveWindowParams) -> dict[str, Any]:
+    def _exec_move(self, p: MoveWindowParams, admit: Callable[[], None]) -> dict[str, Any]:
         with self._refs_lock:
             ref = self._refs.get(p.target_ref)
         if ref is None or ref.expires_at < self._clock():
@@ -297,7 +364,7 @@ class HelperEngine:
         if not any(geometry.area(geometry.intersect(target, tuple(m["work"]))) > 0 for m in monitors):  # type: ignore[arg-type]
             return err(self.mode, "BAD_REQUEST", "target rectangle is not on an active display")
         before = {"rect": list(win.rect), "frame": list(win.frame)}
-        self.ops.move_window(ref.hwnd, target)  # type: ignore[arg-type]
+        self.ops.move_window(ref.hwnd, target, admit=admit)  # type: ignore[arg-type]
         rects = self.ops.window_rect(ref.hwnd)
         after = {"rect": list(rects[0]), "frame": list(rects[1])} if rects else None
         return ok(self.mode, {"executed": True, "before": before, "after": after})

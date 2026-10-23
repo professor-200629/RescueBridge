@@ -211,12 +211,16 @@ def tone_plan(facts: dict[str, Any]) -> ProposalPlan | None:
     d = facts["audio"].get("default")
     if not d or d["muted"]:
         return None
+    volume = round(float(d["volume_scalar"]), 4)
     return ProposalPlan(
         kind=ProposalKind.TEST,
         action=ActionKind.PLAY_TEST_TONE,
-        params={"endpoint_id": d["endpoint_id"], "duration_ms": TONE_DURATION_MS, "frequency_hz": TONE_FREQUENCY_HZ},
+        # The approval (digest over params + preconditions) covers this endpoint, unmuted, at exactly this volume;
+        # the helper re-checks all three where the tone is played.
+        params={"endpoint_id": d["endpoint_id"], "duration_ms": TONE_DURATION_MS, "frequency_hz": TONE_FREQUENCY_HZ,
+                "expect_muted": False, "expect_volume_scalar": volume},
         target={"endpoint_id": d["endpoint_id"], "endpoint_name": d["name"]},
-        preconditions={"default_endpoint_id": d["endpoint_id"], "muted": False},
+        preconditions={"default_endpoint_id": d["endpoint_id"], "muted": False, "volume_scalar": volume},
         description=(f"Play a {TONE_DURATION_MS / 1000:.1f}-second test tone ({TONE_FREQUENCY_HZ} Hz, moderate level) "
                      f"on '{d['name']}' at its current {_pct(d['volume_scalar'])}% volume. Nothing else changes."),
         original_state={},

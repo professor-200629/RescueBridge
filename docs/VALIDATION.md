@@ -1,8 +1,8 @@
 # Validation
 
-Everything below was run on 2026-10-20 (IST) on the development laptop unless marked otherwise. Results are
-copied from command output or evidence files; nothing is estimated. **Fixture**, **real Windows read-only**,
-and **not run** are kept separate.
+Sections 1–5b were run on 2026-10-20 (IST) on the development laptop; later sections carry their own dates.
+Results are copied from command output or evidence files; nothing is estimated. **Fixture**, **real Windows**,
+and **not run** are kept separate; section 6 is the current summary.
 
 ## Environment
 
@@ -304,14 +304,84 @@ SET_AUDIO_ENDPOINT**, REPAIR MOVE_WINDOW — all `controlled_live_lab`, verified
 4 approvals; mission stop detail "helper fence 4 acknowledged". No person answered the tone question (Claude
 cannot hear the laptop). 104 tests pass after the lab fix.
 
-## 6. Not run (unverified)
+### 5k. Audit fixes (2026-10-23): four independently reproduced defects
 
-- **Real Windows changes**: unmute, test tone, WorkPad window move and a guarded **Undo** are verified on
-  real Windows (5e, 5f, 5j). Still unverified: volume change (only unmute was needed), mouse primary button, and
-  the click-test window (its Tk start-up bug is fixed and tested; the window itself was not shown).
-- **Phone over Wi-Fi**: LAN HTTPS mode, certificate acceptance on Android. (USB transport: see 5c.)
-- **Phone voice**: one real spoken utterance by the owner was recognised (imperfectly) and processed (5c);
-  speech synthesis ran on the phone (5d). Recognition accuracy across speakers/accents was not measured.
-- **Real Windows from the phone** (even read-only): not run (5d).
-- **Human participants: zero.** Protocol ready in `HUMAN_TRIAL_PROTOCOL.md`.
-- Multi-monitor mixed DPI; other Windows builds; another laptop.
+An independent audit of commit `424acea` reproduced four defects. Each fix has deterministic regression tests:
+threading events and one-shot pause points in the fixture OS adapter (`FixtureOps.pause_points`), not timing
+sleeps. **No real Windows setting was changed, no tone was played and no window was moved for this work.**
+
+| Defect | Root cause | Fix | Tests |
+|---|---|---|---|
+| A write whose authority Stop had revoked could still reach the OS | The helper compared the revision with the fence once, before its own precondition observation. The real adapter then waited in its single COM worker queue before the OS call, so Stop could land in between and the write still ran. The fence ack also reported any started operation as "in flight", even one that was only queued or observing. | **Admission gate.** Every mutation (mouse, audio including Undo, window move, tone, click test) calls `admit()` in the context that performs the OS call — on the COM worker thread for real Windows, after any queue wait — immediately before the call. `admit()` and fence advancement take the same lock: an operation is either admitted before the fence moved (ack: `in_flight_operation_id`, phase `ADMITTED`; it may finish) or refused (`FENCED`, phase `REJECTED_BY_FENCE`). Phases `QUEUED`/`OBSERVING`/`ADMITTED`/`COMPLETED`/`NOT_ADMITTED`; queued and observing operations are listed separately as `pending_operation_ids`. | `tests/test_stop_fence.py` (9): Stop during a paused precondition observation → no mutation; Stop while each mutation kind is queued → none; Stop during an admitted call → reported in flight, completes, a stale retry is fenced; repeated and lower fences are idempotent; service level: Stop during the helper's precondition check, and Stop while an Undo is queued. With the gate's fence check disabled, 7 of the 9 fail. |
+| Hedged answers resolved issues | The `AFFIRM` regex found "works" inside "I think it works, maybe", "It works?", "It works sometimes"; the LLM path accepted a model "yes" when the keyword side had no answer; the service accepted a model-interpreted `works` whenever that regex matched. | One rule, `domain/confirm.py::confirmation_polarity` → yes / no / unclear (a question, tentative, conditional or intermittent wording, or positive and negative together → unclear). The **service** enforces it before a model-interpreted answer can resolve or fail an issue (`AMBIGUOUS`); both interpreters use it, and an LLM label cannot override an unclear reading. An unclear answer is recorded as `unsure` citing the utterance id; the issue stays `AWAITING_USER_CONFIRMATION`; the reply asks for yes/no or the buttons. | `tests/test_confirmation.py` (20): the seven audit phrases through the service and through the phone API; buttons still confirm directly; a fake LLM that labels everything "yes" cannot override; a clear "no" that names the symptom is one answer, not a new report. |
+| A tone approved at one volume could play at another | `tone_plan` bound only the endpoint and "unmuted"; the helper checked only the endpoint. | The volume is in the tone's parameters (`expect_volume_scalar`, `expect_muted: false`) and preconditions, both under the approval digest; backend tolerance for the tone 0.005 (half the smallest user-visible 1 % step; Windows reads back the scalar it set); the helper protocol requires the fields; the helper checks before queueing and the OS adapter re-checks inside the worker immediately before `PlaySound`. On a mismatch nothing plays and nothing is adjusted: a fresh test proposal for the current settings is offered (new approval), none if muted. | `tests/test_tone_binding.py` (8): unchanged → plays once; volume up, volume down, other endpoint, muted → not played, no playback call, volume untouched, new proposal (none when muted); a change while the tone waits in the helper queue → refused + new proposal; tampered expected volume → digest rejected; protocol requires the fields. Fixture OS: nothing audible. |
+| `.python-version` ignored by uv | The file was UTF-8 **with BOM** (`EF BB BF 33 2E 31 33`); uv read `﻿3.13` as an unsupported request and ignored the pin. | The file is exactly `3.13\n` (5 bytes). `requires-python` and `uv.lock` unchanged. | Clean clone, below. |
+
+**Clean clone** (`git clone` into `%TEMP%`, no `.venv`, `VIRTUAL_ENV`/`UV_PYTHON` unset, no `--python`):
+
+| Checkout | `uv sync --frozen` |
+|---|---|
+| `424acea` (before) | `warning: Ignoring unsupported Python request '﻿3.13' in version file`, `Using CPython 3.12.13`, `error: The Python request from .python-version resolved to Python 3.12.13, which is incompatible with the project's Python requirement: ==3.13.*` — **exit 2** |
+| fixed file | `Using CPython 3.13.0 interpreter at: …\Python313\python.exe`, 49 packages installed, **exit 0, no warning**; `uv python find` → the clone's `.venv`, no warning |
+| the whole final tree (staged as a commit in a throwaway clone, then cloned again) | same: CPython 3.13.0, exit 0, 0 warnings; then `pytest -m "not browser"` in that checkout: **131 passed**, 10 deselected (the browser tests need `npm ci` + build, not run there) |
+
+The packages came from the warm local uv cache; an install with an empty cache (network to PyPI) was not run.
+
+**Real adapter, nothing written:** a probe called the real `WindowsOps.set_audio` with `mute=None, volume=None`
+(writes nothing even without a gate) while the single COM worker was held busy: the call was observed queued, a
+fence advanced, the worker was released, and the gate ran **on the worker thread after the queue wait** and refused
+it (`FENCED`, not `OS_ERROR`); the default endpoint's mute and volume were identical before and after. The real
+mouse, window, tone and click-test gates follow the same code pattern but were not exercised on real Windows.
+
+Note on section 1: the earlier test "Stop while a write is queued in the helper → fenced" covered a write waiting
+for the helper's lock only, not the worker queue or the precondition observation; 5k supersedes it.
+
+Checks for this change (2026-10-23, this laptop):
+
+| Command | Result |
+|---|---|
+| `.venv\Scripts\python.exe -m pytest -q` (all tests, incl. Edge browser, helper process over the real named pipe, real Windows read-only) | **141 passed**, 0 failed, 0 skipped, 157 s |
+| `.venv\Scripts\python.exe -m ruff check src tests scripts` | All checks passed |
+| `.venv\Scripts\python.exe -m mypy` | Success: no issues found in 47 source files |
+| `cd web; npx tsc --noEmit -p .; npm run build` | pass; bundle unchanged (`index-91_L_oPt.js`; no web source changed) |
+| `rescuebridge.cli eval --sets fixture,heldout --provider rules` | fixture 24/24, held-out 2/6, 0 incorrect changes, 0 false claims (unchanged) |
+
+Before/after through the phone API (clean clone of `424acea`, same fixture flow): "I think it works, maybe",
+"It works?", "It works sometimes" and "If it works, I'll tell you" each **resolved** the issue (`works` recorded);
+now each stays waiting, is recorded as `unsure`, and gets a follow-up question. "It works, but I still can't hear
+anything" and "No, I still can't hear anything" were silently ignored (no answer recorded, no question), because a
+sentence that also names a symptom skipped the answer routing; now the first is asked again and the second is
+recorded as `still_broken` → `UNRESOLVED` with next steps.
+
+## 6. Current status by kind of evidence (2026-10-23)
+
+**Automated tests on the fixture OS adapter** (simulated Windows, simulated person in the evaluation): every
+workflow, races, failures, Stop/fence, Undo, confirmation rule, tone binding, pairing and web security, browser
+flows in headless Edge. These say nothing about real hardware.
+
+**Real devices of the owner (this laptop + Samsung SM-A366E over USB)** — done by the owner, or by Claude at the
+owner's request on the owner's devices; not by anyone else:
+
+| Verified on real Windows / the real phone | Where |
+|---|---|
+| Read-only observation of mouse, audio, windows, monitors; Stop confirmed by the real helper fence | 2, 5j |
+| Unmute (Core Audio `SetMute`) approved on the phone; the test tone (`PlaySound`) played once | 5e, 5j |
+| Guarded Undo of the unmute | 5j |
+| WorkPad off-screen window moved back (`SetWindowPos`), text fingerprint unchanged | 5f, 5j |
+| QR pairing, phone microphone input (the owner's own spoken requests), phone speech output | 5c, 5e, 5j |
+| Phone flows in the phone's real Chrome, driven by Claude over DevTools (not a person using the phone) | 5d, 5j |
+
+**Independent participant testing: none.** No one other than the owner has used RescueBridge; no user study was
+run. Protocol ready in `HUMAN_TRIAL_PROTOCOL.md`.
+
+**Unverified (code exists, not run for real):**
+
+- Mouse primary-button swap and the click-test window on real Windows.
+- Volume change on real Windows (only unmute was ever needed); the new tone volume binding and the admission gate
+  with a real change (5k exercised the gate on the real worker with a no-op call only).
+- Phone over Wi-Fi/LAN (HTTPS, certificate acceptance on Android).
+- Screen reader or other assistive technology; recognition accuracy across speakers and accents.
+- A third-party MCP Apps host rendering the recovery card (only RescueBridge's own simulator host).
+- Multi-monitor mixed DPI; other Windows builds; another laptop; a cold-cache fresh install.
+
+**Demo:** planned in `DEMO_SCRIPT.md`; **not recorded, no video URL.**

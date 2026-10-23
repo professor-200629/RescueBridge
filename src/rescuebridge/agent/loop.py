@@ -85,6 +85,8 @@ KIND_TITLE = {"MOUSE_BUTTONS": "Mouse buttons", "AUDIO_OUTPUT": "Sound", "OFFSCR
 
 
 MOUSE_QUESTION = "which button should do normal clicks: left, the usual one, or right, for left-handed use?"
+UNSURE_REPLY = ("I'm not sure that means it's fixed, so I haven't marked it resolved. Is it working now? "
+                "Please say yes or no, or tap a button.")
 
 
 def _proposal_text(r: dict[str, Any]) -> str:
@@ -315,11 +317,23 @@ class Agent:
         open_issues = [i for i in issues if i["state"] not in ("RESOLVED", "UNSUPPORTED")] if active else []
 
         awaiting = [i for i in open_issues if i["state"] == "AWAITING_USER_CONFIRMATION"]
-        if awaiting and (it.yes or it.no) and not it.categories:
+        # Mentioning only the symptom being confirmed ("...but I still can't hear anything") is an answer about
+        # it, not a new report.
+        about_awaited = not set(it.categories) - {i.get("category") for i in awaiting}
+        if awaiting and (it.yes or it.no or it.uncertain) and about_awaited:
             target = awaiting[-1]
-            r = await call("record_user_result", {"issue_id": target["issue_id"], "result": "works" if it.yes else "still_broken",
+            answered: dict[str, Any] = {}
+            if it.yes or it.no:
+                answered = await call("record_user_result", {"issue_id": target["issue_id"],
+                                                             "result": "works" if it.yes else "still_broken",
+                                                             "utterance_id": utterance_id})
+            if it.uncertain or (answered.get("error") or {}).get("code") == "AMBIGUOUS":
+                # Not a clear answer: keep it as evidence ("unsure", citing the utterance), keep waiting, ask again.
+                await call("record_user_result", {"issue_id": target["issue_id"], "result": "unsure",
                                                   "utterance_id": utterance_id})
-            results.append(r)
+                said.append(UNSURE_REPLY)
+            else:
+                results.append(answered)
 
         for issue in [i for i in open_issues if i["state"] == "NEEDS_CLARIFICATION"]:
             args: dict[str, Any] = {"issue_id": issue["issue_id"]}

@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from rescuebridge.domain.confirm import confirmation_polarity, looks_like_an_answer
+
 CATEGORY_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("mouse_not_moving", re.compile(
         r"\b(mouse|pointer|cursor|arrow)\b[^.?!]{0,30}\b(not|n't|won'?t|doesn'?t|isn'?t|can'?t|cannot|never)\b[^.?!]{0,15}"
@@ -38,10 +40,6 @@ CATEGORY_PATTERNS.append(("window_missing", re.compile(
 
 STOP_RE = re.compile(r"^\s*(stop|cancel|halt|abort|don'?t do (it|that|anything)|stop everything)\b", re.I)
 UNDO_RE = re.compile(r"\b(undo|revert|put it back|change it back|roll ?back)\b", re.I)
-YES_RE = re.compile(r"\b(yes|yeah|yep|yup|i (can )?hear it|heard it|it works|works now|working now|that worked|"
-                    r"i can see it|i see it|it'?s (back|visible|fine|working))\b", re.I)
-NO_RE = re.compile(r"\b(no|nope|didn'?t|did not|can'?t hear|cannot hear|not working|still (broken|wrong|silent|"
-                   r"can'?t|cannot|no)|nothing)\b", re.I)
 LEFT_HANDED = re.compile(r"\bleft[- ]?hand(ed)?\b", re.I)
 RIGHT_HANDED = re.compile(r"\bright[- ]?hand(ed)?\b", re.I)
 WANT_LEFT = re.compile(r"\b(left (button|click|one|side)|use the left|normal(ly)?|usual|default|regular|standard)\b", re.I)
@@ -60,6 +58,7 @@ class Interpretation:
     primary_button: str | None = None
     volume_percent: int | None = None
     ambiguous_answer: bool = False  # two interpreters disagreed about a consequential answer
+    uncertain: bool = False  # an answer that is not a clear yes or no ("I think it works, maybe", "it works?")
 
 
 def interpret(text: str) -> Interpretation:
@@ -67,9 +66,11 @@ def interpret(text: str) -> Interpretation:
     it = Interpretation()
     it.stop = bool(STOP_RE.search(t))
     it.undo = bool(UNDO_RE.search(t))
-    neg_only = NO_RE.search(t)
-    it.yes = bool(YES_RE.search(t)) and not neg_only
-    it.no = bool(neg_only) and not bool(YES_RE.search(t))
+    # Same rule the service enforces: tentative / conditional / question / intermittent / contradictory -> neither.
+    polarity = confirmation_polarity(t)
+    it.yes = polarity == "yes"
+    it.no = polarity == "no"
+    it.uncertain = polarity == "unclear" and looks_like_an_answer(t)
     for cat, pat in CATEGORY_PATTERNS:
         if pat.search(t):
             if cat == "mouse_buttons_wrong" and "mouse_not_moving" in it.categories and not re.search(r"click", t, re.I):

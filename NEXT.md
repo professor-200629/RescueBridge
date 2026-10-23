@@ -14,17 +14,17 @@ qwen2.5:3b-instruct and llama3.2:3b (no downloads by this project). MCP SDK 2.3.
 | Gate | Status |
 |---|---|
 | 0 Inspect + plan | done |
-| 1 Vertical slice | done in browser for fixture (all 3 workflows, approve → apply → verify → person result) and real Windows **read-only** (observe, question, no-cause, Stop fence). Real Windows **changes**: unmute + tone verified 2026-10-21 from the owner's phone (VALIDATION 5e); mouse swap / window move / click test not yet on real Windows. Phone: USB verified (QR pairing, voice, approvals; VALIDATION 5c–5e). Wi-Fi/LAN phone: not tested. |
-| 2 Domain engine + adapters | done: SQLite state, proposals/digests/approvals, fence, idempotent apply, reconciliation, guarded Undo, 3 recipes, real + fixture adapters, named-pipe helper |
-| 3 UX + model/voice | browser app done; voice code written but not exercised with a microphone; local LLM measured (tool-calling 0/8; schema interpretation 20/20 held-out v1 symptoms) |
-| 4 Validation + submission | tests/eval/bench/docs done; pending: live lab, phone, fresh-clone setup timing, video, publishing |
+| 1 Vertical slice | done for fixture (all 3 workflows, approve → apply → verify → person result) and real Windows read-only. Real Windows **changes** on the owner's laptop, approved on the owner's phone: unmute, tone, guarded Undo, WorkPad window move (VALIDATION 5e, 5f, 5j). Not on real Windows: mouse swap, click test, volume change. Phone: USB verified (QR pairing, voice, approvals; 5c–5e, 5j). Wi-Fi/LAN phone: not tested. |
+| 2 Domain engine + adapters | done: SQLite state, proposals/digests/approvals, fence with admission gate (5k), idempotent apply, reconciliation, guarded Undo, 3 recipes, real + fixture adapters, named-pipe helper |
+| 3 UX + model/voice | browser app done; phone microphone and speech used by the owner (5c, 5e); local LLM measured (tool-calling 0/8; schema interpretation 20/20 held-out v1 symptoms) |
+| 4 Validation + submission | tests/eval/bench/docs and live lab done; repo published, including the 2026-10-23 audit fixes; pending: video, independent participants (none so far), Devpost submission |
 
-## Last verified checks (2026-10-20, ~23:55 IST)
+## Last verified checks (2026-10-23)
 
-See `docs/VALIDATION.md` for exact commands and numbers. Summary: `pytest` 70 passed (also in a fresh clone);
-ruff and mypy clean; Edge browser smoke test passes; fixture evaluation 24/24 (keyword and LLM providers),
-held-out 2/6 (keyword) and 5/6 (LLM); 0 incorrect changes and 0 false completion claims in every evaluation run;
-start/stop/check scripts exercised (stop.ps1 parse bug found and fixed).
+See `docs/VALIDATION.md` 5k. `pytest` 141 passed (incl. Edge browser, helper over the real pipe, real Windows
+read-only); ruff and mypy clean; web typecheck + build pass; fixture evaluation 24/24, held-out 2/6 (keyword),
+0 incorrect changes, 0 false claims; clean clone: `uv sync --frozen` picks Python 3.13.0 from `.python-version`
+with no warning (warm uv cache).
 
 ## 2026-10-21 update
 
@@ -39,7 +39,8 @@ Then the owner scanned the QR code, paired, and spoke one problem on the phone (
 at the owner's request, drove the phone's RescueBridge tab over adb-forwarded CDP through every fixture flow
 and fixed 7 defects (`aae0f76`, VALIDATION 5c/5d). 81 tests pass. Not done: real Windows from the phone (the
 session's permission policy blocked the real-mode host console), voice without the owner (the laptop voice did
-not reach the phone mic), any real Windows change (live lab never armed).
+not reach the phone mic), any real Windows change (live lab never armed). (All but the second were done later
+that day: 5e, 5f, 5j.)
 
 ## 2026-10-21 night: review repairs
 
@@ -48,6 +49,14 @@ first-reply speech, monotonic `state_seq` snapshots (stale-after-Stop rejected, 
 validation + distinct errors, first-run guidance + `scripts\host-console.ps1`, and the browser-only
 "Try a simulated recovery" preview (`web/src/preview-data.json`, regenerate with `scripts\make_preview_data.py`).
 103 tests pass. Live instance restarted (real mode, `RescueBridge-real`); phone was unplugged at restart.
+
+## 2026-10-23: audit fixes (committed and pushed at the owner's request)
+
+An independent audit of `424acea` reproduced four defects, all fixed with deterministic tests (VALIDATION 5k):
+Stop admission gate at the OS-call boundary (`tests/test_stop_fence.py`), hedged answers no longer resolve
+issues (`domain/confirm.py`, `tests/test_confirmation.py`), test tone bound to the approved volume
+(`tests/test_tone_binding.py`), `.python-version` without BOM. No real Windows change was made. The running
+instance (if any) still runs the old code until restarted (none was running when the fixes were committed).
 
 ## Next actions (in order)
 
@@ -59,8 +68,10 @@ validation + distinct errors, first-run guidance + `scripts\host-console.ps1`, a
 4. Owner: record the < 3 min video exactly per `docs/DEMO_SCRIPT.md` (keyword interpreter is fine; the local
    LLM adds ~5–6 s per request).
 5. (done 2026-10-21) Published at https://github.com/professor-200629/RescueBridge (public, Apache-2.0 detected,
-   `main`). Push later commits with `git push`. Video URL still pending in `docs/SUBMISSION.md`.
-6. Optional, high value for "Impact": 1–2 family members try it for 10 min per `docs/HUMAN_TRIAL_PROTOCOL.md`.
+   `main`). The 2026-10-23 audit fixes are pushed too. Push later commits with `git push`. Video URL still
+   pending in `docs/SUBMISSION.md`.
+6. Optional, high value for "Impact": 1–2 family members try it for 10 min per `docs/HUMAN_TRIAL_PROTOCOL.md`
+   (none has so far; do not describe RescueBridge as user-tested until this happens).
 7. Submit on Devpost yourself after re-reading the official rules page (deadline 24 Oct 00:30 IST).
 
 ## Where things are

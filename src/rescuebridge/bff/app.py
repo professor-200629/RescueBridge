@@ -381,7 +381,10 @@ def build_bff_app(ctx: AppContext, auth: AuthService, *, lan_url: str | None = N
                     "_handled": "",
                 }.get(str(outcome), f"Outcome: {outcome}"))
                 if proposal["kind"] == "TEST":
-                    lines.append("Did you hear the tone?")
+                    if applied.get("test_not_played"):  # never ask about a tone that did not play
+                        lines = [str(applied.get("note") or "The test tone was not played.")]
+                    else:
+                        lines.append("Did you hear the tone?")
                 elif applied.get("revised"):
                     lines.append(describe_issue_result(applied["revised"]))
                 if proposal["kind"] == "REPAIR" and outcome in ("APPLIED_STATE_VERIFIED", "APPLIED_STATE_NOT_VERIFIED",

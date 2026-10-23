@@ -33,7 +33,16 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from rescuebridge.host.geometry import Rect
-from rescuebridge.host.system_ops import Endpoint, Monitor, OpsError, RawWindow, WindowIdentity
+from rescuebridge.host.system_ops import (
+    Admit,
+    Endpoint,
+    Monitor,
+    OpsError,
+    RawWindow,
+    ToneExpectation,
+    WindowIdentity,
+    tone_expectation_problem,
+)
 
 T = TypeVar("T")
 
@@ -163,8 +172,10 @@ class WindowsOps:
 
         return self._run(read)
 
-    def set_mouse_swap(self, swap: bool) -> None:
+    def set_mouse_swap(self, swap: bool, *, admit: Admit | None = None) -> None:
         def write() -> None:
+            if admit:
+                admit()  # on the worker thread, after any queue wait, immediately before the OS call
             if not user32.SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP, 1 if swap else 0, None,
                                                 SPIF_UPDATEINIFILE | SPIF_SENDCHANGE):
                 raise _last_error("SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)")
@@ -177,41 +188,46 @@ class WindowsOps:
 
     # --- audio ---------------------------------------------------------------------------------
     def audio_endpoints(self) -> list[Endpoint]:
-        def read() -> list[Endpoint]:
-            from comtypes import COMError
-            from pycaw.constants import DEVICE_STATE, EDataFlow, ERole
-            from pycaw.utils import AudioUtilities
-
-            enum = AudioUtilities.GetDeviceEnumerator()
-            try:
-                default_id = enum.GetDefaultAudioEndpoint(EDataFlow.eRender.value, ERole.eConsole.value).GetId()
-            except COMError:
-                default_id = None
-            out: list[Endpoint] = []
-            import warnings
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                devices = AudioUtilities.GetAllDevices(EDataFlow.eRender.value, DEVICE_STATE.ACTIVE.value)
-            for d in devices:
-                try:
-                    ev = d.EndpointVolume
-                    out.append(Endpoint(id=d.id, name=str(d.FriendlyName or "Unnamed output"),
-                                        is_default=d.id == default_id, muted=bool(ev.GetMute()),
-                                        volume_scalar=float(ev.GetMasterVolumeLevelScalar())))
-                except COMError:
-                    continue
-            return out
-
         try:
-            return self._run(read)
+            return self._run(self._read_endpoints)
         except OpsError:
             raise
         except Exception as exc:
             raise OpsError("UNOBSERVABLE", f"Core Audio read failed: {type(exc).__name__}") from exc
 
-    def set_audio(self, endpoint_id: str, mute: bool | None, volume_scalar: float | None) -> None:
+    @staticmethod
+    def _read_endpoints() -> list[Endpoint]:
+        """Runs ON the worker thread (callers inside a worker function call it directly)."""
+        from comtypes import COMError
+        from pycaw.constants import DEVICE_STATE, EDataFlow, ERole
+        from pycaw.utils import AudioUtilities
+
+        enum = AudioUtilities.GetDeviceEnumerator()
+        try:
+            default_id = enum.GetDefaultAudioEndpoint(EDataFlow.eRender.value, ERole.eConsole.value).GetId()
+        except COMError:
+            default_id = None
+        out: list[Endpoint] = []
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            devices = AudioUtilities.GetAllDevices(EDataFlow.eRender.value, DEVICE_STATE.ACTIVE.value)
+        for d in devices:
+            try:
+                ev = d.EndpointVolume
+                out.append(Endpoint(id=d.id, name=str(d.FriendlyName or "Unnamed output"),
+                                    is_default=d.id == default_id, muted=bool(ev.GetMute()),
+                                    volume_scalar=float(ev.GetMasterVolumeLevelScalar())))
+            except COMError:
+                continue
+        return out
+
+    def set_audio(self, endpoint_id: str, mute: bool | None, volume_scalar: float | None, *,
+                  admit: Admit | None = None) -> None:
         def write() -> None:
+            if admit:
+                admit()  # on the worker thread, after any queue wait, immediately before the OS call
             import comtypes
             from pycaw.pycaw import IAudioEndpointVolume
             from pycaw.utils import AudioUtilities
@@ -226,14 +242,31 @@ class WindowsOps:
 
         try:
             self._run(write)
+        except OpsError:
+            raise  # a refused admission is not an OS failure
         except Exception as exc:
             raise OpsError("OS_ERROR", f"Core Audio write failed: {type(exc).__name__}") from exc
 
-    def play_tone(self, duration_ms: int, frequency_hz: int) -> dict[str, Any]:
+    def play_tone(self, duration_ms: int, frequency_hz: int, *, admit: Admit | None = None,
+                  expect: ToneExpectation | None = None) -> dict[str, Any]:
         import winsound
 
         data = _tone_wav(duration_ms, frequency_hz)
-        self._run(lambda: winsound.PlaySound(data, winsound.SND_MEMORY | winsound.SND_NODEFAULT))
+
+        def play() -> None:
+            # At the playback boundary, in the same worker call: the approved endpoint, unmuted, approved volume.
+            if expect is not None:
+                default = next((e for e in self._read_endpoints() if e.is_default), None)
+                problem = tone_expectation_problem(
+                    {"endpoint_id": default.id, "muted": default.muted, "volume_scalar": default.volume_scalar}
+                    if default else None, expect.endpoint_id, expect.volume_scalar)
+                if problem:
+                    raise OpsError(*problem)
+            if admit:
+                admit()
+            winsound.PlaySound(data, winsound.SND_MEMORY | winsound.SND_NODEFAULT)
+
+        self._run(play)
         return {"played": True, "duration_ms": duration_ms, "frequency_hz": frequency_hz, "amplitude_dbfs": -12}
 
     # --- monitors and windows --------------------------------------------------------------------
@@ -374,8 +407,10 @@ class WindowsOps:
         w = self._run(lambda: self._raw_window(hwnd))
         return (w.rect, w.frame) if w else None
 
-    def move_window(self, hwnd: int, rect: Rect) -> None:
+    def move_window(self, hwnd: int, rect: Rect, *, admit: Admit | None = None) -> None:
         def write() -> None:
+            if admit:
+                admit()  # on the worker thread, after any queue wait, immediately before the OS call
             left, top, right, bottom = rect
             if not user32.SetWindowPos(hwnd, None, left, top, right - left, bottom - top,
                                        SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER):
@@ -397,7 +432,9 @@ class WindowsOps:
         return {"pid": pid, "hwnd": hwnd, "text_sha256": str(st.get("text_sha256", ""))[:64],
                 "text_chars": int(st.get("text_chars", 0)), "unsaved": bool(st.get("unsaved", True))}
 
-    def show_click_test(self, test_id: str) -> None:
+    def show_click_test(self, test_id: str, *, admit: Admit | None = None) -> None:
+        if admit:
+            admit()  # runs in the calling thread, immediately before the process is started
         self.click_test_dir.mkdir(parents=True, exist_ok=True)
         exe = Path(sys.executable)
         pyw = exe.with_name("pythonw.exe")
