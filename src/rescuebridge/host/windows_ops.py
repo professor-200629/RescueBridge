@@ -38,9 +38,11 @@ from rescuebridge.host.system_ops import (
     Endpoint,
     Monitor,
     OpsError,
+    OpsTimeout,
     RawWindow,
     ToneExpectation,
     WindowIdentity,
+    admitted,
     tone_expectation_problem,
 )
 
@@ -142,9 +144,10 @@ def _tone_wav(duration_ms: int, frequency_hz: int, amplitude: float = 0.25, rate
 class WindowsOps:
     mode = "real_windows"
 
-    def __init__(self, workpad_dir: Path, click_test_dir: Path) -> None:
+    def __init__(self, workpad_dir: Path, click_test_dir: Path, *, call_timeout_s: float = 20.0) -> None:
         self.workpad_dir = workpad_dir
         self.click_test_dir = click_test_dir
+        self.call_timeout_s = call_timeout_s
         self._worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rb-os", initializer=self._init_thread)
         self._own_integrity = self._run(lambda: self._integrity_rid(os.getpid()))
 
@@ -155,7 +158,15 @@ class WindowsOps:
         comtypes.CoInitialize()
 
     def _run(self, fn: Callable[[], T]) -> T:
-        return self._worker.submit(fn).result(timeout=20)
+        """Run on the worker. A timeout stops the WAIT, not the call: the worker may still run `fn`, so mutations
+        rely on their admission context (entered and left on the worker) rather than on this return."""
+        fut = self._worker.submit(fn)
+        try:
+            return fut.result(timeout=self.call_timeout_s)
+        except TimeoutError as exc:
+            if fut.done():
+                raise
+            raise OpsTimeout(f"Windows did not finish the call within {self.call_timeout_s:g} s") from exc
 
     # --- mouse ---------------------------------------------------------------------------------
     def mouse_state(self) -> dict[str, Any]:
@@ -174,11 +185,10 @@ class WindowsOps:
 
     def set_mouse_swap(self, swap: bool, *, admit: Admit | None = None) -> None:
         def write() -> None:
-            if admit:
-                admit()  # on the worker thread, after any queue wait, immediately before the OS call
-            if not user32.SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP, 1 if swap else 0, None,
-                                                SPIF_UPDATEINIFILE | SPIF_SENDCHANGE):
-                raise _last_error("SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)")
+            with admitted(admit):  # on the worker thread, after any queue wait, around the OS call only
+                if not user32.SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP, 1 if swap else 0, None,
+                                                    SPIF_UPDATEINIFILE | SPIF_SENDCHANGE):
+                    raise _last_error("SystemParametersInfoW(SPI_SETMOUSEBUTTONSWAP)")
 
         self._run(write)
 
@@ -226,19 +236,19 @@ class WindowsOps:
     def set_audio(self, endpoint_id: str, mute: bool | None, volume_scalar: float | None, *,
                   admit: Admit | None = None) -> None:
         def write() -> None:
-            if admit:
-                admit()  # on the worker thread, after any queue wait, immediately before the OS call
             import comtypes
             from pycaw.pycaw import IAudioEndpointVolume
             from pycaw.utils import AudioUtilities
 
+            # Preparatory COM calls change nothing and can stall; authority is checked only after them.
             dev = AudioUtilities.GetDeviceEnumerator().GetDevice(endpoint_id)
             ev = dev.Activate(IAudioEndpointVolume._iid_, comtypes.CLSCTX_ALL, None).QueryInterface(
                 IAudioEndpointVolume)
-            if volume_scalar is not None:
-                ev.SetMasterVolumeLevelScalar(float(volume_scalar), None)
-            if mute is not None:
-                ev.SetMute(1 if mute else 0, None)
+            with admitted(admit):  # on the worker thread, immediately around the mutating calls
+                if volume_scalar is not None:
+                    ev.SetMasterVolumeLevelScalar(float(volume_scalar), None)
+                if mute is not None:
+                    ev.SetMute(1 if mute else 0, None)
 
         try:
             self._run(write)
@@ -262,9 +272,8 @@ class WindowsOps:
                     if default else None, expect.endpoint_id, expect.volume_scalar)
                 if problem:
                     raise OpsError(*problem)
-            if admit:
-                admit()
-            winsound.PlaySound(data, winsound.SND_MEMORY | winsound.SND_NODEFAULT)
+            with admitted(admit):
+                winsound.PlaySound(data, winsound.SND_MEMORY | winsound.SND_NODEFAULT)
 
         self._run(play)
         return {"played": True, "duration_ms": duration_ms, "frequency_hz": frequency_hz, "amplitude_dbfs": -12}
@@ -409,12 +418,11 @@ class WindowsOps:
 
     def move_window(self, hwnd: int, rect: Rect, *, admit: Admit | None = None) -> None:
         def write() -> None:
-            if admit:
-                admit()  # on the worker thread, after any queue wait, immediately before the OS call
             left, top, right, bottom = rect
-            if not user32.SetWindowPos(hwnd, None, left, top, right - left, bottom - top,
-                                       SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER):
-                raise _last_error("SetWindowPos")
+            with admitted(admit):  # on the worker thread, after any queue wait, around the OS call only
+                if not user32.SetWindowPos(hwnd, None, left, top, right - left, bottom - top,
+                                           SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER):
+                    raise _last_error("SetWindowPos")
 
         self._run(write)
 
@@ -433,14 +441,13 @@ class WindowsOps:
                 "text_chars": int(st.get("text_chars", 0)), "unsaved": bool(st.get("unsaved", True))}
 
     def show_click_test(self, test_id: str, *, admit: Admit | None = None) -> None:
-        if admit:
-            admit()  # runs in the calling thread, immediately before the process is started
         self.click_test_dir.mkdir(parents=True, exist_ok=True)
         exe = Path(sys.executable)
         pyw = exe.with_name("pythonw.exe")
         cmd = [str(pyw if pyw.exists() else exe), "-m", "rescuebridge.workpad.clicktest", "--test-id", test_id,
                "--out", str(self.click_test_dir)]
-        subprocess.Popen(cmd, creationflags=CREATE_NO_WINDOW, close_fds=True)  # noqa: S603 - fixed argv
+        with admitted(admit):  # in the calling thread, around starting the process
+            subprocess.Popen(cmd, creationflags=CREATE_NO_WINDOW, close_fds=True)  # noqa: S603 - fixed argv
 
     def click_test_result(self, test_id: str) -> dict[str, Any] | None:
         try:

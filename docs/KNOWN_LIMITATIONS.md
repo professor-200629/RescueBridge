@@ -58,7 +58,10 @@ done by the owner or by Claude at the owner's request. **No independent particip
 - The live lab refuses to push a **minimized** WorkPad off-screen (that would create no real fault). Launching
   WorkPad from a hidden process starts it minimized; start it from a normal terminal.
 - Stop cannot interrupt an OS call that was already admitted (for example a running `PlaySound`, 1.2 s):
-  it finishes, and the fence acknowledgement names it as in flight.
+  it finishes, and the fence acknowledgement names it as in flight, also after the request for it timed out.
+- If Windows stalls during a change, the phone reports that the outcome is not known yet and nothing is retried;
+  **Check again** settles it once the laptop has finished. A change that had not started when its request timed
+  out is cancelled and never runs. Exercised with fake Core Audio objects and the fixture, not with a real stall.
 - A tone approved at one volume is never played at another: if the volume, mute or device changed, nothing
   plays and a fresh test proposal must be approved.
 
@@ -80,10 +83,11 @@ done by the owner or by Claude at the owner's request. **No independent particip
 - Answer interpretation for the LLM path uses an agreement policy (designed after seeing held-out v1
   failures). When interpreters disagree the person is asked to use the buttons.
 - English only. Claim guard and polarity checks are English keyword rules.
-- The confirmation rule is deliberately conservative: a question, hedge ("maybe", "I think"), condition,
-  "sometimes", or a yes-and-no answer is treated as unclear and asked again, so some genuine answers need a
-  second "yes"/"no" or a button tap. Answers in words the rule does not know ("absolutely") are not counted;
-  the issue keeps waiting for a recognised answer or a button.
+- The confirmation rule is deliberately conservative: a yes counts only when the whole answer is a recognised
+  present-tense confirmation ("yes", "it works now", "I heard the tone"). Questions, hedges ("maybe"), conditions,
+  "sometimes", past or future ("it was working yesterday"), wishes ("I wish it worked"), other people's words,
+  "but …", and yes-and-no answers are unclear and asked again, so some genuine answers need a second "yes" or a
+  button tap. Words the rule does not know ("absolutely positive") are not counted; the issue keeps waiting.
 - Free tool-calling by the 3B models (`ollama-tools`) is unreliable (0/8 correct first calls).
 
 ## Known defects / rough edges

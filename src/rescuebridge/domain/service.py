@@ -319,6 +319,16 @@ class RecoveryService:
         state = IssueState(issue["state"])
         if state in (IssueState.UNSUPPORTED, IssueState.RESOLVED):
             return self._issue_result(issue, note=f"Issue is {state.value}; nothing to inspect.")
+        if state == IssueState.APPLYING:
+            # A change whose outcome was left open (e.g. still running on the laptop after a timeout): settle it from
+            # the helper's own tracking and a fresh observation, serialized with apply. Never re-executed.
+            async with self._mutation_lock:
+                op = self.store.one("SELECT * FROM operations WHERE issue_id = ? AND phase != ? ORDER BY intent_at DESC "
+                                    "LIMIT 1", (issue["id"], OperationPhase.FINISHED.value))
+                p = self.store.get("proposals", op["proposal_id"]) if op else None
+                if op and p:
+                    note = await self._reconcile_operation(op, p, mission, issue)
+                    return self._issue_result(self.store.get("issues", issue["id"]) or issue, note=note)
         if state in (IssueState.APPROVED, IssueState.APPLYING, IssueState.VERIFYING, IssueState.AWAITING_USER_CONFIRMATION):
             return self._issue_result(issue, note=f"Issue is {state.value}; inspection not repeated.")
         self._set_state(issue, IssueState.INSPECTING, "inspection started")
@@ -667,6 +677,20 @@ class RecoveryService:
         if not resp.get("ok"):
             code = resp.get("error", {}).get("code", "OS_ERROR")
             msg = resp.get("error", {}).get("message", "")
+            if code == "OUTCOME_UNKNOWN":  # the helper's Windows call timed out
+                if resp["error"].get("admitted"):  # the change had started: uncertain, never a plain failure
+                    return await self._unknown_outcome(op, p, mission, issue, f"helper: {msg}")
+                # Not admitted: the helper cancelled it atomically, so it can never run. Nothing was changed.
+                self.store.update("operations", op["id"], {
+                    "phase": OperationPhase.FINISHED.value, "finished_at": now_ms(),
+                    "outcome": OperationOutcome.NOT_ATTEMPTED.value, "error": f"{code}: {msg}",
+                    "execution_result": resp.get("error")})
+                if p["kind"] != ProposalKind.TEST.value:
+                    self._set_state(issue, IssueState.FAILED, "helper timed out before the change started")
+                return {"operation": self.operation_view(self.store.get("operations", op["id"]) or op),
+                        "test_not_played": p["kind"] == ProposalKind.TEST.value,
+                        "note": "The laptop did not respond in time, so the change was cancelled before it started. "
+                                "Nothing was changed."}
             outcome = OperationOutcome.REJECTED_OR_EXPIRED if code in REVISABLE_ERRORS | {"FENCED", "UNSUPPORTED"} else OperationOutcome.FAILED
             self.store.update("operations", op["id"], {"phase": OperationPhase.FINISHED.value, "finished_at": now_ms(),
                                                        "outcome": outcome.value, "error": f"{code}: {msg}",
@@ -739,8 +763,22 @@ class RecoveryService:
         note = await self._reconcile_operation(self.store.get("operations", op["id"]) or op, p, mission, issue)
         return {"operation": self.operation_view(self.store.get("operations", op["id"]) or op), "note": note}
 
+    async def _helper_still_has(self, operation_id: str) -> bool:
+        """The helper still tracks this operation: inside its OS call, or queued and still admissible."""
+        try:
+            h = (await self.host.health()).get("result") or {}
+        except HelperUnavailableError:
+            return False  # unknown here; the fresh observation decides, or reports that it cannot
+        return operation_id in [*(h.get("in_flight_operation_ids") or []), *(h.get("pending_operation_ids") or [])]
+
     async def _reconcile_operation(self, op: dict[str, Any], p: dict[str, Any], mission: dict[str, Any],
                                    issue: dict[str, Any]) -> str:
+        """Caller holds _mutation_lock (or runs at startup)."""
+        if await self._helper_still_has(op["id"]):
+            note = ("The change is still running on the laptop, so its outcome is not known yet. Nothing will be "
+                    "retried. Use Check again in a moment.")
+            self.store.update("operations", op["id"], {"reconcile_note": note})
+            return note
         if p["kind"] == ProposalKind.TEST.value:
             self.store.update("operations", op["id"], {"phase": OperationPhase.FINISHED.value, "finished_at": now_ms(),
                                                        "reconcile_note": "test outcome unknown"})

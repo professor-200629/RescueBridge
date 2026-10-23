@@ -18,7 +18,7 @@ is in [`docs/VALIDATION.md`](docs/VALIDATION.md).
 
 | Kind of evidence | Status |
 |---|---|
-| Automated tests (fixture OS adapter; scripted person in the scenario evaluation) | 141 tests pass (3 of them read real Windows state without changing it); 24/24 fixture scenarios and 2/6 held-out with the keyword interpreter, 0 incorrect changes, 0 false "fixed" claims |
+| Automated tests (fixture OS adapter; scripted person in the scenario evaluation) | 210 tests pass (3 of them read real Windows state without changing it); 24/24 fixture scenarios and 2/6 held-out with the keyword interpreter, 0 incorrect changes, 0 false "fixed" claims |
 | Real devices — the owner's laptop and Android phone only (by the owner, or by Claude at the owner's request) | real unmute, test tone, guarded Undo and off-screen WorkPad window move on Windows 11, approved on the phone; QR pairing, voice and approvals over USB |
 | Independent participants | **none** — nobody else has used it |
 | Not verified for real | mouse repair and click test, volume change, phone over Wi-Fi/LAN, screen readers, a third-party MCP Apps host |

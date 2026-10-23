@@ -18,17 +18,38 @@ from tests.harness import pair_device, running_backend
 pytestmark = pytest.mark.anyio
 
 NOT_A_CLEAR_YES = ["I think it works, maybe", "It works?", "It works sometimes", "If it works, I'll tell you",
-                   "It works, but I still can't hear anything"]
+                   "It works, but I still can't hear anything",
+                   # a positive word that says nothing about now: past, wish, second-hand, elsewhere, temporary
+                   "It was working yesterday", "I wish it worked", "It should work now", "My son says it works",
+                   "It worked on my other laptop", "It works for now"]
 CLEAR_YES = "Yes, it works now"
 CLEAR_NO = "No, it still doesn't work"
 
+# Every confirmation phrase used by the evaluation harness and the held-out sets, plus common short forms.
+OTHER_YES = ["yes", "Yep.", "yup", "yes I heard it", "yes it works now", "yes I can see it", "yes I can see it now",
+             "yeah that worked", "I heard a beep", "I can hear the tone clearly", "it's back on my screen",
+             "It's working!", "All good now, thank you", "now it works", "I can see my notes again"]
+OTHER_NO = ["no", "no, I still can't hear anything", "no, it's still wrong", "no, I can't see it", "not at all",
+            "still nothing", "nope still silent", "didn't hear anything", "I couldn't hear it"]
+# Unknown or idiomatic wording is never a yes, and negative-looking idioms are never a no.
+OTHER_UNCLEAR = ["It used to work", "It worked before", "It will work", "I want it to work", "I hope it works",
+                 "It worked for a second", "It works on my phone", "it was fine", "I heard it yesterday",
+                 "Yes, but only on my headphones", "yes and no", "No problem", "never mind", "no idea",
+                 "let me check", "not yet", "Not anymore", "okay", "absolutely positive"]
+
 
 def test_polarity_rule():
-    assert [confirmation_polarity(t) for t in NOT_A_CLEAR_YES] == ["unclear"] * 5
+    assert [confirmation_polarity(t) for t in NOT_A_CLEAR_YES] == ["unclear"] * len(NOT_A_CLEAR_YES)
     assert confirmation_polarity(CLEAR_YES) == "yes"
     assert confirmation_polarity(CLEAR_NO) == "no"
     assert all(interpret(t).uncertain and not interpret(t).yes for t in NOT_A_CLEAR_YES)
     assert interpret(CLEAR_YES).yes and interpret(CLEAR_NO).no
+
+
+@pytest.mark.parametrize(("text", "expected"), [*((t, "yes") for t in OTHER_YES), *((t, "no") for t in OTHER_NO),
+                                                *((t, "unclear") for t in OTHER_UNCLEAR)])
+def test_only_a_present_unambiguous_answer_counts(text, expected):
+    assert confirmation_polarity(text) == expected
 
 
 async def awaiting_confirmation(env) -> str:

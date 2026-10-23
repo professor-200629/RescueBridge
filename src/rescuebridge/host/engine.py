@@ -8,13 +8,15 @@ Enforces, independently of the backend:
   identity, monitor configuration),
 - short-lived helper-issued window target references bound to HWND + process identity.
 
-Stop/fence admission. Every mutation receives an `admit` gate that the OS layer calls in the execution context
-that performs the change (for WindowsOps: on its worker thread, after any queue wait), immediately before the
-OS call. The gate and fence advancement take the same lock, so they are strictly ordered: a fence acknowledged
-before admission makes the gate refuse; an operation admitted before the fence is reported in the
-acknowledgement as `in_flight_operation_id` (its single OS call may finish). Operations that are only queued or
-still checking preconditions are never reported as in flight; they are listed as `pending_operation_ids` and
-will be refused at admission.
+Stop/fence admission. Every mutation receives an admission context that the OS layer enters in the execution
+context that performs the change (for WindowsOps: on its worker thread, after any queue wait and preparatory COM
+calls), immediately before the mutating call, and leaves when that call returns. Entering and fence advancement
+take the same lock, so they are strictly ordered: a fence acknowledged before admission makes entry refuse; an
+operation admitted before the fence is reported in the acknowledgement as in flight (its OS call may finish).
+An operation stays in flight until its OS call has actually returned, even if the request that started it timed
+out. Operations that are only queued or still checking preconditions are never reported as in flight; they are
+listed as `pending_operation_ids` and will be refused at admission. When a request gives up before its operation
+was admitted, the operation is cancelled atomically and can never be admitted later.
 """
 
 from __future__ import annotations
@@ -24,7 +26,8 @@ import os
 import secrets
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -46,7 +49,9 @@ from rescuebridge.host.protocol import (
     parse_request,
 )
 from rescuebridge.host.system_ops import (
+    Admit,
     OpsError,
+    OpsTimeout,
     RawWindow,
     SystemOps,
     ToneExpectation,
@@ -73,6 +78,14 @@ class Fenced(OpsError):
         self.revision = revision
 
 
+class Cancelled(OpsError):
+    """Raised by the admission gate: the request for this operation already ended (e.g. timed out) before it was
+    admitted, so it must never start. Raised on the worker thread; nobody waits for it any more."""
+
+    def __init__(self) -> None:
+        super().__init__("OUTCOME_UNKNOWN", "request ended before admission; cancelled")
+
+
 @dataclass
 class TargetRef:
     ref: str
@@ -90,9 +103,9 @@ class HelperEngine:
         self.mode = ops.mode
         self._clock = clock
         self._fence = 0
-        self._fence_lock = threading.Lock()  # guards _fence, _admitted and _phases; never held across an OS call
+        self._fence_lock = threading.Lock()  # guards _fence, _in_os and _phases; never held across an OS call
         self._write_lock = threading.Lock()
-        self._admitted: str | None = None  # passed the admission gate; its OS call may be underway
+        self._in_os: set[str] = set()  # admitted and their OS call has not returned yet (may outlive the request)
         self._phases: dict[str, str] = {}
         self._refs: dict[str, TargetRef] = {}
         self._refs_lock = threading.Lock()
@@ -123,36 +136,67 @@ class HelperEngine:
     # ------------------------------------------------------------------------------------------
     def _health(self) -> dict[str, Any]:
         with self._fence_lock:
-            fence, admitted = self._fence, self._admitted
-        return {"mode": self.mode, "fence": fence, "pid": os.getpid(), "in_flight_operation_id": admitted,
-                "started_at": self.started_at}
+            fence, in_os = self._fence, sorted(self._in_os)
+            pending = [op for op, ph in self._phases.items() if ph in (QUEUED, OBSERVING)]
+        return {"mode": self.mode, "fence": fence, "pid": os.getpid(), "in_flight_operation_id": in_os[0] if in_os else None,
+                "in_flight_operation_ids": in_os, "pending_operation_ids": pending, "started_at": self.started_at}
 
     def _set_fence(self, revision: int) -> dict[str, Any]:
         with self._fence_lock:  # same lock as admission: the two are strictly ordered
             self._fence = max(self._fence, revision)
-            fence, admitted = self._fence, self._admitted
+            fence, in_os = self._fence, sorted(self._in_os)
             pending = [op for op, ph in self._phases.items() if ph in (QUEUED, OBSERVING)]
-        # Only an operation admitted before this point may still change state (its OS call may finish). Queued or
-        # precondition-checking operations are refused when they reach admission.
-        return {"fence": fence, "in_flight_operation_id": admitted, "in_flight_phase": ADMITTED if admitted else None,
-                "pending_operation_ids": pending, "acknowledged_at": int(self._clock() * 1000)}
+        # Only an operation admitted before this point may still change state (its OS call may finish, even after
+        # its request timed out). Queued or precondition-checking operations are refused when they reach admission.
+        return {"fence": fence, "in_flight_operation_id": in_os[0] if in_os else None, "in_flight_operation_ids": in_os,
+                "in_flight_phase": ADMITTED if in_os else None, "pending_operation_ids": pending,
+                "acknowledged_at": int(self._clock() * 1000)}
 
     def _set_phase(self, operation_id: str, phase: str) -> None:
         """Caller holds _fence_lock."""
         self._phases[operation_id] = phase
         while len(self._phases) > _PHASE_HISTORY:
-            self._phases.pop(next(iter(self._phases)))
+            oldest = next((op for op in self._phases if op not in self._in_os), None)
+            if oldest is None:
+                break
+            self._phases.pop(oldest)
 
-    def _admission_gate(self, revision: int, operation_id: str) -> Callable[[], None]:
-        def admit() -> None:
+    def _admission_gate(self, revision: int, operation_id: str) -> Admit:
+        @contextmanager
+        def admission() -> Iterator[None]:
             with self._fence_lock:
+                if self._phases.get(operation_id) != OBSERVING:  # its request already ended: never start it now
+                    raise Cancelled()
                 if revision < self._fence:
                     self._set_phase(operation_id, FENCED_OUT)
                     raise Fenced(self._fence, revision)
-                self._admitted = operation_id
+                self._in_os.add(operation_id)
                 self._set_phase(operation_id, ADMITTED)
+            try:
+                yield  # the OS call runs here, in the caller's execution context
+            finally:
+                with self._fence_lock:  # only now is the call over, whether or not anyone still waits for it
+                    self._in_os.discard(operation_id)
+                    self._set_phase(operation_id, COMPLETED)
 
-        return admit
+        return admission
+
+    def _uncertain_outcome(self, operation_id: str, exc: OpsError) -> dict[str, Any] | None:
+        """A timeout, or a failed read-back after the change ran, is an uncertain outcome, never a plain failure.
+        Decided under the fence lock, so an operation that was not admitted yet is cancelled atomically."""
+        with self._fence_lock:
+            started = self._phases.get(operation_id) in (ADMITTED, COMPLETED)
+            still_running = operation_id in self._in_os
+            if not started:
+                self._set_phase(operation_id, NOT_ADMITTED)  # from now on admission refuses it
+        if not started and isinstance(exc, OpsTimeout):
+            return err(self.mode, "OUTCOME_UNKNOWN", "Windows did not respond in time before the change started; it "
+                       "was cancelled and will not run", admitted=False, still_running=False)
+        if started and (isinstance(exc, OpsTimeout) or exc.code == "UNOBSERVABLE"):
+            msg = ("the change started but has not finished; it may still complete" if still_running else
+                   "the change ran but its result could not be read back")
+            return err(self.mode, "OUTCOME_UNKNOWN", msg, admitted=True, still_running=still_running)
+        return None
 
     def _fenced_error(self, fence: int, revision: int) -> dict[str, Any]:
         return err(self.mode, "FENCED", "authority revision is older than the helper fence (Stop or revocation)",
@@ -294,17 +338,20 @@ class HelperEngine:
                 return err(self.mode, "BAD_REQUEST", "unsupported action")
             except Fenced as f:
                 return self._fenced_error(f.fence, f.revision)
+            except OpsError as exc:
+                uncertain = self._uncertain_outcome(op_id, exc)
+                if uncertain is not None:
+                    return uncertain
+                raise
             finally:
                 with self._fence_lock:
-                    if self._admitted == op_id:
-                        self._admitted = None
-                    phase = self._phases.get(op_id)
-                    if phase == ADMITTED:
-                        self._set_phase(op_id, COMPLETED)
-                    elif phase == OBSERVING:
-                        self._set_phase(op_id, NOT_ADMITTED)  # e.g. a precondition failed: nothing was changed
+                    # The request is over. Not admitted by now -> never (e.g. a precondition failed: nothing changed).
+                    # Admitted and still inside its OS call -> stays in flight until the call returns (the
+                    # admission context marks it COMPLETED then), never cleared here.
+                    if self._phases.get(op_id) in (QUEUED, OBSERVING):
+                        self._set_phase(op_id, NOT_ADMITTED)
 
-    def _exec_mouse(self, p: SetMouseParams, admit: Callable[[], None]) -> dict[str, Any]:
+    def _exec_mouse(self, p: SetMouseParams, admit: Admit) -> dict[str, Any]:
         before = self.ops.mouse_state()
         if bool(before["swap_effective"]) != p.expect_swap:
             return err(self.mode, "PRECONDITION_FAILED", "button mapping changed since it was observed",
@@ -313,7 +360,7 @@ class HelperEngine:
         after = self.ops.mouse_state()
         return ok(self.mode, {"executed": True, "before": before, "after": after})
 
-    def _exec_audio(self, p: SetAudioParams, admit: Callable[[], None]) -> dict[str, Any]:
+    def _exec_audio(self, p: SetAudioParams, admit: Admit) -> dict[str, Any]:
         facts = self._audio_facts()
         d = facts["default"]
         if d is None or d["endpoint_id"] != p.endpoint_id:
@@ -326,7 +373,7 @@ class HelperEngine:
         after = self._audio_facts()["default"]
         return ok(self.mode, {"executed": True, "before": d, "after": after})
 
-    def _exec_tone(self, p: PlayToneParams, admit: Callable[[], None]) -> dict[str, Any]:
+    def _exec_tone(self, p: PlayToneParams, admit: Admit) -> dict[str, Any]:
         d = self._audio_facts()["default"]
         problem = tone_expectation_problem(d, p.endpoint_id, p.expect_volume_scalar)
         if problem:
@@ -336,7 +383,7 @@ class HelperEngine:
                                     expect=ToneExpectation(p.endpoint_id, p.expect_volume_scalar))
         return ok(self.mode, {"executed": True, "endpoint": d, **played})
 
-    def _exec_move(self, p: MoveWindowParams, admit: Callable[[], None]) -> dict[str, Any]:
+    def _exec_move(self, p: MoveWindowParams, admit: Admit) -> dict[str, Any]:
         with self._refs_lock:
             ref = self._refs.get(p.target_ref)
         if ref is None or ref.expires_at < self._clock():

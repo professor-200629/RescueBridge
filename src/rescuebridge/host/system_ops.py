@@ -3,14 +3,17 @@
 These are called ONLY by `HelperEngine`, which enforces the fixed protocol, fencing, write
 serialization, and target revalidation. Implementations must not be exposed to any caller directly.
 
-Every mutating method takes `admit`: a gate supplied by the engine that implementations MUST call in the
-execution context that performs the change, immediately before the OS call (after any worker-queue wait). If
-`admit` raises, nothing may be changed.
+Every mutating method takes `admit`: an admission context supplied by the engine. Implementations MUST enter it
+in the execution context that performs the change, after any worker-queue wait and any preparatory calls,
+immediately before the mutating OS call, and leave it only when that call has returned (or raised): `with
+admitted(admit): <OS call>`. Entering raises when the operation may no longer run, and then nothing may be
+changed. Leaving is what tells the engine the call is over, even if the request that started it gave up waiting.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
@@ -26,7 +29,18 @@ class OpsError(Exception):
         self.message = message
 
 
-Admit = Callable[[], None]
+class OpsTimeout(OpsError):
+    """A Windows call did not finish in time. The call itself may still be running on the worker thread."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__("UNOBSERVABLE", message)
+
+
+Admit = Callable[[], AbstractContextManager[None]]
+
+
+def admitted(admit: Admit | None) -> AbstractContextManager[None]:
+    return admit() if admit else nullcontext()
 
 # A test tone is approved for one endpoint, unmuted, at one volume. Windows reports the endpoint volume as a float
 # scalar that reads back exactly what was set (float rounding only), and every user-visible change is at least a

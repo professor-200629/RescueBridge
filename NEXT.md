@@ -21,7 +21,7 @@ qwen2.5:3b-instruct and llama3.2:3b (no downloads by this project). MCP SDK 2.3.
 
 ## Last verified checks (2026-10-23)
 
-See `docs/VALIDATION.md` 5k. `pytest` 141 passed (incl. Edge browser, helper over the real pipe, real Windows
+See `docs/VALIDATION.md` 5k and 5l. `pytest` 210 passed (incl. Edge browser, helper over the real pipe, real Windows
 read-only); ruff and mypy clean; web typecheck + build pass; fixture evaluation 24/24, held-out 2/6 (keyword),
 0 incorrect changes, 0 false claims; clean clone: `uv sync --frozen` picks Python 3.13.0 from `.python-version`
 with no warning (warm uv cache).
@@ -57,6 +57,11 @@ Stop admission gate at the OS-call boundary (`tests/test_stop_fence.py`), hedged
 issues (`domain/confirm.py`, `tests/test_confirmation.py`), test tone bound to the approved volume
 (`tests/test_tone_binding.py`), `.python-version` without BOM. No real Windows change was made. The running
 instance (if any) still runs the old code until restarted (none was running when the fixes were committed).
+
+A second review of `68f98b9` reproduced two more defects, both fixed (VALIDATION 5l): a timed-out Windows call
+was dropped from Stop's in-flight tracking and could still change the setting after Stop
+(`tests/test_helper_timeouts.py`), and "It was working yesterday" / "I wish it worked" resolved an issue (a yes
+must now be a recognised present-tense confirmation).
 
 ## Next actions (in order)
 

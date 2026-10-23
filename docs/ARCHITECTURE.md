@@ -56,15 +56,17 @@
    revised proposal (new approval needed); otherwise records **intent** + consumes the approval in one
    transaction, then sends `execute(revision)` to the helper.
 6. Helper: write lock → early fence check (`revision < fence` → `FENCED`) → its own precondition check (endpoint
-   still default, mute/volume as expected) → the OS worker runs the call: **admission** (`admit()`: fence
-   checked again, atomically with fence advancement) immediately before the Core Audio call → reads back.
+   still default, mute/volume as expected) → the OS worker runs the call: preparatory COM calls, then the
+   **admission** context (fence checked again, atomically with fence advancement) around the Core Audio call only
+   → reads back. A worker timeout returns `OUTCOME_UNKNOWN` (`admitted` true/false); a call not yet admitted is
+   cancelled for good, an admitted one stays in flight until it actually returns.
 7. Backend takes a **fresh after-observation**: `APPLIED_STATE_VERIFIED` only if the observed state matches;
    success-without-change → `APPLIED_STATE_NOT_VERIFIED`; timeout → `OUTCOME_UNKNOWN` + reconciliation (no
    blind retry).
 8. `verify_recovery` re-observes; issue → `AWAITING_USER_CONFIRMATION` with a test-tone proposal (separate
    approval; bound to that endpoint, unmuted, at the observed volume — re-checked where the tone is played, and
    a mismatch plays nothing and offers a fresh test). Only the person's **Yes** (button, or an utterance that is
-   a clear yes under `domain/confirm.py`, enforced by the service) makes it `RESOLVED`. "No" → `UNRESOLVED` with
+   a recognised present-tense yes under `domain/confirm.py`, enforced by the service) makes it `RESOLVED`. "No" → `UNRESOLVED` with
    manual next steps. A hedged, conditional, questioning, intermittent or contradictory answer is recorded as
    `unsure` and asked again.
 
@@ -85,9 +87,13 @@
   `ADMITTED`) and lists queued or still-observing operations separately (`pending_operation_ids`), which can no
   longer be admitted.
 - **Serialization:** backend per-host `anyio.Lock` for apply; helper write lock; the helper's `_fence_lock` makes
-  fence advancement and admission mutually exclusive. Admission runs in the execution context of the OS call
-  (the COM worker thread for real Windows), so a wait in the worker queue cannot outlast a Stop. Phases per
-  operation: `QUEUED` → `OBSERVING` → `ADMITTED` → `COMPLETED`, or `REJECTED_BY_FENCE` / `NOT_ADMITTED`.
+  fence advancement and admission mutually exclusive. Admission is a context entered and left in the execution
+  context of the OS call (the COM worker thread for real Windows), so neither a wait in the worker queue nor a
+  timed-out request can outlast a Stop or hide a running call. Phases per operation: `QUEUED` → `OBSERVING` →
+  `ADMITTED` → `COMPLETED`, or `REJECTED_BY_FENCE` / `NOT_ADMITTED` (also: cancelled after a timeout).
+- **Timeouts:** the backend never concludes an operation the helper still lists as in flight or pending
+  (health), and **Check again** on an `APPLYING` issue re-reconciles it from a fresh observation, never
+  re-executing it.
 - **Restart:** approved-but-unused proposals → `REVOKED`, pending → `EXPIRED`, affected issues → `REPORTED`
   (re-inspect); operations not `FINISHED` are reconciled from a fresh observation and never re-executed.
 - **Undo:** a new `UNDO` proposal (needs approval) only if the current state equals the operation's expected

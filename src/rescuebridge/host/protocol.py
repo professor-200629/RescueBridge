@@ -151,6 +151,7 @@ ErrorCode = Literal[
     "OS_ERROR",
     "UNOBSERVABLE",
     "NOT_AUTHENTICATED",
+    "OUTCOME_UNKNOWN",  # an execute timed out; `admitted` says whether its change had started
 ]
 
 

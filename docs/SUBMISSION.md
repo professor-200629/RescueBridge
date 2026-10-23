@@ -71,7 +71,7 @@ RescueBridge's MCP server; any MCP host with a device-bound bearer token can cal
 
 ## What the evidence is (do not overstate it in the description or video)
 
-- **Automated, fixture OS:** 141 tests (3 read real Windows state without changing it) and 30 scripted scenarios with a simulated person (`VALIDATION.md` 1, 3, 5k).
+- **Automated, fixture OS:** 210 tests (3 read real Windows state without changing it) and 30 scripted scenarios with a simulated person (`VALIDATION.md` 1, 3, 5k, 5l).
 - **Real devices, the owner's only** (one laptop, one phone; by the owner or by Claude at the owner's request):
   unmute, test tone, guarded Undo and WorkPad window move on real Windows; QR pairing, voice and approvals on
   the phone over USB (`VALIDATION.md` 5c–5j).

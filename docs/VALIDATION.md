@@ -353,6 +353,32 @@ anything" and "No, I still can't hear anything" were silently ignored (no answer
 sentence that also names a symptom skipped the answer routing; now the first is asked again and the second is
 recorded as `still_broken` → `UNRESOLVED` with next steps.
 
+### 5l. Second review (2026-10-23): timeouts and present-tense confirmations
+
+A second review of `68f98b9` reproduced two remaining defects. Both were reproduced here before the fix, with the
+same fixture-only / fake-COM rules as 5k (no real setting changed, nothing audible).
+
+| Defect | Reproduction before the fix | Root cause | Fix | Tests |
+|---|---|---|---|---|
+| Stop lost track of an audio change after a timeout | Real `WindowsOps` worker, fake Core Audio objects, 0.3 s timeout, worker stalled in `GetDevice`: the request returned `OS_ERROR` ("Core Audio write failed: TimeoutError"); Stop then acknowledged **nothing in flight, nothing pending**; releasing the worker still called `SetMute(0)` (unmuted after a confirmed Stop) | The worker timeout ended only the *wait*; the engine's cleanup then cleared "in flight" although the worker could still run the call. Admission happened before the preparatory COM calls, so a stall there was already "admitted". A timeout was reported as a definite failure. | Admission is a context **entered and left in the execution context of the OS call**: an operation stays in flight until the call returns, even after its request gave up. Admission moved after the preparatory COM calls (`GetDevice`/`Activate`/`QueryInterface`), right around `SetMasterVolumeLevelScalar`/`SetMute` (same pattern for mouse, window, tone, click test). A timeout returns `OUTCOME_UNKNOWN` with `admitted`/`still_running`; an operation not yet admitted is cancelled atomically and can never start later. The backend treats `admitted` as unknown outcome, otherwise "not attempted"; it does not conclude while the helper still lists the operation (in flight or pending), and **Check again** settles it later from a fresh observation, without re-executing. | `tests/test_helper_timeouts.py` (8): stalled before the change → cancelled, never runs (with and without Stop); stalled inside `SetMute` → stays in flight across the timeout, Stop names it, it finishes, then nothing is in flight; Stop during a stalled preparatory call → refused; backend waits while the change still runs and settles it on Check again (one OS call); Stop after a backend timeout names the running change; timeout before / after the change started → not attempted / unknown outcome. Same sequence after the fix: `OUTCOME_UNKNOWN` "cancelled and will not run", no write after release, still muted. |
+| Historical and wishful statements resolved issues | Phone API on `68f98b9`: "It was working yesterday" and "I wish it worked" each → **RESOLVED** (`works` recorded) | A yes was any positive word ("working", "it worked") not cancelled by a known qualifier. | A yes must be a **recognised present-tense confirmation**: the whole utterance consists of confirmations ("yes", "it works now", "I heard the tone", "it's back on my screen") and filler ("thanks"). Time-shifted, wishful, second-hand, deferred, contrasting and idiomatic wording ("no problem", "never mind") is unclear, and unknown wording is unclear by default; a no needs negative evidence and no positive evidence. Same service-side enforcement as 5k. | `tests/test_confirmation.py`: the two reported phrases plus "It should work now", "My son says it works", "It worked on my other laptop", "It works for now" through the service and the phone; 43 single-phrase cases (every confirmation phrase of the evaluation harness and the held-out sets, common negatives, and unclear idioms). After the fix both reported phrases stay `AWAITING_USER_CONFIRMATION`, recorded as `unsure`. |
+
+Note: the held-out answer phrases (section 4, "v1 answers", "v2 answers") were used as required examples while
+writing the new grammar, so they no longer measure how the keyword interpreter generalises to unseen answers; the
+interpreter benchmark was not re-run.
+
+Checks for this change (2026-10-23, this laptop):
+
+| Command | Result |
+|---|---|
+| `.venv\Scripts\python.exe -m pytest -q` (all tests, incl. Edge browser, helper over the real pipe, real Windows read-only, `WindowsOps` worker with fake Core Audio) | **210 passed**, 0 failed, 0 skipped, 154 s |
+| `ruff check src tests scripts` / `mypy` | All checks passed / no issues in 47 source files |
+| `rescuebridge.cli eval --sets fixture,heldout --provider rules` | fixture 24/24, held-out 2/6, 0 incorrect changes, 0 false claims (unchanged) |
+| Read-only probe of the real `WindowsOps.set_audio` (no value to write; 5k) re-run on the new code | gate on the worker thread, refused after a queue wait, endpoint unchanged |
+
+No web source changed (the bundle is unchanged). Not run: a real stall of a real Windows call, and any real
+change with this code (no live-lab session).
+
 ## 6. Current status by kind of evidence (2026-10-23)
 
 **Automated tests on the fixture OS adapter** (simulated Windows, simulated person in the evaluation): every
